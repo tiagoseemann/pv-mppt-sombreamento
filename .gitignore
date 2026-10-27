@@ -1,0 +1,25 @@
+# Trabalho de outros autores (semestre anterior) - nao versionar
+Trabalho_Final_DAS5109_Energia_Fotovoltaica.pdf
+
+# LaTeX
+*.aux
+*.log
+*.out
+*.toc
+*.xdv
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# MATLAB
+*.asv
+*.mex*
+slprj/
+
+# Sistema
+.DS_Store
