@@ -224,7 +224,7 @@ end
 
 function test_kcl_zero_em_ponto_da_curva(tc)
 p = parametros_painel('generico');
-q = p;  q.Nsub = 1;  q.Ncel = p.Ns;
+q = p;  q.Nsub = 1;  q.Ncel = p.Ns;  q.I0bp = 0;   % kcl_modulo nao tem diodo de bypass
 I = painel_sombreado(15, 1000, p.Tn, q);
 F = kcl_modulo(15, I, 1000, p.Tn, p);
 verifyEqual(tc, F, 0, 'AbsTol', 1e-6);
@@ -237,8 +237,7 @@ V = 17;  h = 1e-4;
 I  = painel_sombreado(V, 1000, p.Tn, q);
 Ip = painel_sombreado(V + h, 1000, p.Tn, q);
 Im = painel_sombreado(V - h, 1000, p.Tn, q);
-[~, g] = kcl_modulo(V, I, 1000, p.Tn, p);
-dIdV = -g / (1 + p.Ns * p.Rs * g);
+[~, ~, dIdV] = kcl_modulo(V, I, 1000, p.Tn, p);
 verifyEqual(tc, dIdV, (Ip - Im) / (2 * h), 'RelTol', 1e-3);
 end
 ```
@@ -519,8 +518,7 @@ p = aplicar(x);
         Gn = q.Gn;  Tn = q.Tn;
         F1 = kcl_modulo(0, ds.Isc, Gn, Tn, q);
         F2 = kcl_modulo(ds.Voc, 0, Gn, Tn, q);
-        [F3, g] = kcl_modulo(ds.Vmp, ds.Imp, Gn, Tn, q);
-        dIdV = -g / (1 + q.Rs * q.Ns * g);
+        [F3, ~, dIdV] = kcl_modulo(ds.Vmp, ds.Imp, Gn, Tn, q);
         F4 = ds.Imp + ds.Vmp * dIdV;
         r = [F1; F2; F3; F4] / ds.Isc;
         if strcmp(modelo, '2d')
@@ -639,7 +637,7 @@ end
 end
 ```
 
-- [ ] **Passo 3: Rodar `test_ztp160m`** — Expected: 2 `Passed`. Se `test_coeficiente_de_Pmax_independente` falhar, isso é um **resultado** (o modelo não reproduz a sensibilidade térmica do fabricante): imprimir `v.gamaP_modelo`, investigar `Eg` e os expoentes `gama_k` de `celula_params`, e reportar no relatório em vez de afrouxar a tolerância.
+- [ ] **Passo 3: Rodar `test_ztp160m`** — Expected: 2 `Passed`. Se `test_coeficiente_de_Pmax_independente` falhar, isso é um **resultado** (o modelo não reproduz a sensibilidade térmica do fabricante): imprimir `v.gamaP_modelo`, investigar `Eg` e os expoentes 3 e 1,5 de `celula_params` (o divisor de Eg é fixo pelo mecanismo: 1 para difusão, 2 para recombinação, independente de a₁/a₂ ajustados), e reportar no relatório em vez de afrouxar a tolerância.
 
 - [ ] **Passo 4: Script E1** (tabela de validação + figura da eficiência relativa η(G)/η(STC) dos dois modelos)
 
