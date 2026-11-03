@@ -24,7 +24,28 @@ p = tc.TestData.p;
 c = curva_pv([1000 1000 1000], p.Tn, p, 3000);
 op = struct('vpv', c.Vmp, 'G', [1000 1000 1000], 'T', p.Tn);
 sys = linearizar_planta(op, p, tc.TestData.pc);
+% RelTol 0,02 vem da grade de 3000 pontos de curva_pv (Vmp aproximado), nao da linearizacao
 verifyEqual(tc, sys.rpv, c.Vmp / c.Imp, 'RelTol', 0.02);
+end
+
+function test_rpv_no_pico_sombreado(tc)
+% Com sombra (2 picos), r_pv = V/I em cada pico: dP/dV = 0 vale tambem num maximo local (caminho do bypass, usado na Tarefa 8).
+p = tc.TestData.p;
+G = [1000 1000 400];
+c = curva_pv(G, p.Tn, p, 3000);
+verifyEqual(tc, height(c.picos), 2);
+for k = 1:height(c.picos)
+    op = struct('vpv', c.picos.V(k), 'G', G, 'T', p.Tn);
+    sys = linearizar_planta(op, p, tc.TestData.pc);
+    verifyEqual(tc, sys.rpv, c.picos.V(k) / c.picos.I(k), 'RelTol', 0.02);
+end
+end
+
+function test_erro_acima_de_Voc(tc)
+% Acima de Voc o painel nao entrega corrente: linearizar_planta deve parar com erro identificado.
+p = tc.TestData.p;
+op = struct('vpv', 30, 'G', [1000 1000 1000], 'T', p.Tn);
+verifyError(tc, @() linearizar_planta(op, p, tc.TestData.pc), 'linearizar_planta:inviavel');
 end
 
 function test_degrau_pequeno_nao_linear_igual_linear(tc)

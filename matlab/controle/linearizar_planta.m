@@ -16,18 +16,35 @@ function sys = linearizar_planta(op, p, pc)
 %   e o resultado e um sistema LINEAR, que vale enquanto as perturbacoes
 %   forem pequenas. E nele que se projeta o controlador (Tarefa 8).
 %
-%   A e B sao obtidas por diferencas centrais: f(x0 + h) - f(x0 - h) / (2h),
+%   A e B sao obtidas por diferencas centrais: (f(x0 + h) - f(x0 - h)) / (2h),
 %   que tem erro O(h^2). Assim a mesma funcao serve com ou sem perdas, e para
 %   qualquer padrao de sombra, sem derivar o painel a mao.
 %
-%   Saida: sys.A, sys.B, sys.C, sys.D, sys.x0, sys.d0, sys.ipv0, sys.rpv.
+%   Validade: o modelo medio so vale em conducao continua (CCM). Em DCM a
+%   corrente do indutor zera a cada periodo, o polo duplo LC desaparece e a
+%   planta fica ~de 1a ordem. Quem usa sys deve conferir sys.ccm.
+%
+%   Obs.: se o Newton do painel falhar numa das solucoes perturbadas,
+%   painel_sombreado so emite um aviso e A sairia errada (improvavel com o
+%   warm start, pois as perturbacoes sao minusculas).
+%
+%   Saida: sys.A, sys.B, sys.C, sys.D, sys.x0, sys.d0, sys.ipv0, sys.rpv,
+%          sys.ccm (true se o ponto esta em conducao continua).
 
 % 1) Equilibrio: corrente do painel em vpv e razao ciclica que mantem vpv
 [ipv0, sol] = painel_sombreado(op.vpv, op.G, op.T, p);
 eq = equilibrio_conversor(op.vpv, ipv0, pc);
-assert(eq.viavel, ['linearizar_planta: ponto de operacao inviavel ' ...
-    '(vpv = %.3g V, ipv = %.3g A): o conversor nao alcanca este ponto ' ...
-    'com d em [Dmin, Dmax] ou nao ha corrente do painel.'], op.vpv, ipv0);
+% Ponto inviavel: diz ao usuario qual das duas causas aconteceu
+if ~eq.viavel
+    if ipv0 <= 0
+        causa = 'vpv acima de Voc (sem corrente do painel)';
+    else
+        causa = sprintf('d fora de [Dmin, Dmax] = [%.3g, %.3g]', pc.Dmin, pc.Dmax);
+    end
+    error('linearizar_planta:inviavel', ...
+        'linearizar_planta: ponto inviavel (vpv = %.4g V, ipv = %.4g A): %s.', ...
+        op.vpv, ipv0, causa);
+end
 x0 = [op.vpv; eq.iL];
 d0 = eq.d;
 z0 = sol.z;   % solucao interna do painel, usada como chute (warm start)
@@ -59,6 +76,8 @@ rpv = -2 * hv / (i_mais - i_menos);
 
 sys = struct('A', A, 'B', B, 'C', [1 0], 'D', 0, 'x0', x0, 'd0', d0, ...
     'ipv0', ipv0, 'rpv', rpv);
+% 5) Conducao continua? (o modelo linear so vale em CCM)
+sys.ccm = verifica_ccm(x0(1), d0, x0(2), pc);
 end
 
 function dx = derivadas(x, d, op, p, pc, z0)
