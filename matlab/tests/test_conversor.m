@@ -42,3 +42,44 @@ verifyTrue(tc, verifica_ccm(18, eqA.d, eqA.iL, pc));
 eqB = equilibrio_conversor(17, 0.25, pc);          % G ~ 30 W/m^2
 verifyFalse(tc, verifica_ccm(17, eqB.d, eqB.iL, pc));
 end
+
+function test_fechada_igual_fzero(tc)
+% O d da formula fechada satisfaz a equacao de equilibrio original (sem multiplicar por d).
+pc = tc.TestData.pc;
+pontos = [18 7.7; 18 1e-3; 5 8; 25 2];
+for k = 1:size(pontos, 1)
+    v = pontos(k, 1);  i = pontos(k, 2);
+    eq = equilibrio_conversor(v, i, pc);
+    d = eq.d;
+    f = d * v - (1 - d) * (pc.Vbat + pc.VF) ...
+        - (i / d) * (pc.rL + d * pc.Ron + (1 - d) * pc.RD);
+    verifyEqual(tc, f, 0, 'AbsTol', 1e-9);
+end
+end
+
+function test_ponto_inviavel(tc)
+% Com vpv muito baixo o d necessario passa de Dmax: ponto inviavel, sem erro e sem potencia.
+eq = equilibrio_conversor(0.2, 8, tc.TestData.pc);
+verifyFalse(tc, eq.viavel);
+verifyEqual(tc, eq.Pout, 0);
+end
+
+function test_sem_transferencia(tc)
+% Sem corrente do painel nao ha transferencia de potencia.
+eq = equilibrio_conversor(18, 0, tc.TestData.pc);
+verifyFalse(tc, eq.viavel);
+end
+
+function test_dimensionamento(tc)
+% Snapshot do projeto para o ZTP-160M: L ~ 57,5 uH e C ~ 1,298 mF (tolerancia de 5 %).
+pz = parametros_conversor(parametros_painel('ztp160m'), 12);
+verifyEqual(tc, pz.L, 57.5e-6, 'RelTol', 0.05);
+verifyEqual(tc, pz.C, 1.298e-3, 'RelTol', 0.05);
+end
+
+function test_pout_igual_pin_menos_perdas(tc)
+% Pout = Pin - Pcond - Psw.
+pc = tc.TestData.pc;
+eq = equilibrio_conversor(18, 7.7, pc);
+verifyEqual(tc, eq.Pout, 18 * 7.7 - eq.Pcond - eq.Psw, 'RelTol', 1e-9);
+end

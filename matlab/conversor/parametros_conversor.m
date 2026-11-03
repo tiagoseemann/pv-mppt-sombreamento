@@ -12,6 +12,8 @@ c = curva_pv(1000 * ones(1, p.Nsub), p.Tn, p, 1000);
 D = Vbat / (Vbat + c.Vmp);
 IL = c.Imp / D;
 
+% A meta de ripple de 30 % e nominal (projeto com o D sem perdas); o ripple
+% real fica em ~34-35 % porque o d real, com perdas, e maior.
 % Indutor: com a chave ligada, di = v_pv*d*Ts/L. Impomos ripple de 30 % de iL.
 pc.L = c.Vmp * D / (0.30 * IL * pc.fs);
 % Capacitor de entrada: com a chave ligada o indutor puxa iL do capacitor, e a
@@ -24,6 +26,8 @@ pc.Ron = 0.018;                % resistencia do MOSFET ligado [ohm]
 pc.VF = 0.45;                  % queda direta do diodo Schottky [V]
 pc.RD = 0.010;                 % resistencia dinamica do diodo [ohm]
 pc.ttr = 100e-9;               % tempo de subida + descida da chave [s]
+% Dmin/Dmax/atraso sao usados pelo controlador (Tarefa 8) e Dmin/Dmax tambem
+% pela checagem de viabilidade em equilibrio_conversor.
 pc.Dmin = 0.02;  pc.Dmax = 0.95;
 pc.atraso = 1.5 * pc.Ts;       % atraso do PWM digital
 end
