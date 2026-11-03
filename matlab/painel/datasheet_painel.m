@@ -8,7 +8,7 @@ function ds = datasheet_painel(nome)
 %   gamaP = coeficiente termico de Pmax [1/K] (usado so para VALIDAR o modelo);
 %   Ns = celulas em serie; Nsub = submodulos (= diodos de bypass);
 %   a_1d = fator de idealidade adotado no modelo de 1 diodo.
-%   So no ZTP-160M: A = area [m^2]; NMOT = temperatura nominal de operacao [C].
+%   So no ZTP-160M: A = area [m^2]; massa [kg]; NMOT = temperatura nominal de operacao [C].
 
 switch lower(nome)
     case 'kc200gt'
@@ -33,6 +33,7 @@ switch lower(nome)
         ds.Nsub = 3;                      % HIPOTESE: 1 bypass por coluna de 11
         ds.A = 0.82;                      % area [m^2]
         ds.NMOT = 45;                     % [C]
+        ds.massa = 8.9;                   % massa do modulo [kg] (datasheet v4.3)
         % Modulo monocristalino com fator de forma alto (0,78): a = 1,3
         % (escolha de Villalva para o KC200GT, policristalino) nao o alcanca
         % sem Rs <= 0. a = 1,1 e o maior valor, em passos de 0,1, que ajusta.
