@@ -87,7 +87,6 @@ mkdir -p ../data/clima ../resultados ../relatorio/figs
 - [ ] **Passo 2: Criar `setup_path.m`, `raiz_projeto.m`, `run_tests.m`**
 
 ```matlab
-% matlab/setup_path.m
 function setup_path()
 %SETUP_PATH Adiciona as pastas do projeto ao path.
 raiz = fileparts(mfilename('fullpath'));
@@ -101,7 +100,6 @@ end
 ```
 
 ```matlab
-% matlab/raiz_projeto.m
 function r = raiz_projeto()
 %RAIZ_PROJETO Pasta raiz do repositorio (pai de matlab/).
 r = fileparts(fileparts(mfilename('fullpath')));
@@ -109,7 +107,6 @@ end
 ```
 
 ```matlab
-% matlab/run_tests.m
 function run_tests()
 %RUN_TESTS Roda todos os testes de matlab/tests e falha se algum falhar.
 setup_path();
@@ -124,7 +121,6 @@ end
 Valores medidos na execução de 27/10/2026 com `parametros_painel()` genérico.
 
 ```matlab
-% matlab/tests/test_sombreamento.m
 function tests = test_sombreamento
 tests = functiontests(localfunctions);
 end
@@ -222,7 +218,6 @@ git commit -m "Modelo de sombreamento em MATLAB com harness de testes"
 - [ ] **Passo 1: Escrever teste que falha**
 
 ```matlab
-% matlab/tests/test_kcl_modulo.m
 function tests = test_kcl_modulo
 tests = functiontests(localfunctions);
 end
@@ -256,7 +251,6 @@ Expected: FAIL, `Undefined function 'kcl_modulo'`.
 - [ ] **Passo 3: Implementar `celula_params.m` e `kcl_modulo.m`**
 
 ```matlab
-% matlab/painel/celula_params.m
 function c = celula_params(G, T, p)
 %CELULA_PARAMS Grandezas dependentes de G e T de um grupo de p.Ncel celulas.
 %   G pode ser vetor (uma irradiancia por submodulo); c.Ipv tem o mesmo tamanho.
@@ -275,7 +269,6 @@ end
 ```
 
 ```matlab
-% matlab/painel/kcl_modulo.m
 function [F, g] = kcl_modulo(V, I, G, T, p)
 %KCL_MODULO Residuo explicito da equacao do modulo inteiro (sem sombra) em (V, I).
 %   F = 0 quando (V, I) esta sobre a curva. g = -dIc/dVd, usado em
@@ -322,7 +315,6 @@ git add matlab && git commit -m "Fatora celula_params e cria kcl_modulo explicit
 - [ ] **Passo 1: Teste do Levenberg-Marquardt (falha)**
 
 ```matlab
-% matlab/tests/test_levenberg_marquardt.m
 function tests = test_levenberg_marquardt
 tests = functiontests(localfunctions);
 end
@@ -343,7 +335,6 @@ end
 - [ ] **Passo 2: Implementar `levenberg_marquardt.m`**
 
 ```matlab
-% matlab/numerico/levenberg_marquardt.m
 function [x, info] = levenberg_marquardt(fun, x0, lb, ub, opts)
 %LEVENBERG_MARQUARDT Minimiza ||fun(x)||^2 com limites (projecao nos limites).
 %   Jacobiano por diferencas centrais. Substitui lsqnonlin (toolbox ausente).
@@ -396,7 +387,6 @@ end
 - [ ] **Passo 4: Teste da extração (falha)**
 
 ```matlab
-% matlab/tests/test_extracao.m
 function tests = test_extracao
 tests = functiontests(localfunctions);
 end
@@ -445,7 +435,6 @@ end
 KC200GT: Villalva et al. (2009), Tabela I (só para validar a extração). ZTP-160M: datasheet v4.3; coeficientes em %/K convertidos para A/K e V/K.
 
 ```matlab
-% matlab/painel/datasheet_painel.m
 function ds = datasheet_painel(nome)
 %DATASHEET_PAINEL Dados de catalogo (STC) usados na extracao de parametros.
 switch lower(nome)
@@ -485,7 +474,6 @@ end
 - [ ] **Passo 6: Implementar `extrair_parametros.m`**
 
 ```matlab
-% matlab/painel/extrair_parametros.m
 function [p, info] = extrair_parametros(ds, modelo)
 %EXTRAIR_PARAMETROS Parametros do modelo de 2 (ou 1) diodos a partir do datasheet.
 %   '2d': a1=1, a2=2; incognitas [Ipv, log10 I01, log10 I02, Rs, Rp] (modulo)
@@ -591,7 +579,6 @@ O datasheet do ZTP-160M não traz curvas I-V. A validação usa o que ele public
 - [ ] **Passo 1: Teste (falha)**
 
 ```matlab
-% matlab/tests/test_ztp160m.m
 function tests = test_ztp160m
 tests = functiontests(localfunctions);
 end
@@ -621,7 +608,6 @@ end
 - [ ] **Passo 2: Implementar `validar_painel.m`**
 
 ```matlab
-% matlab/painel/validar_painel.m
 function v = validar_painel(nome)
 %VALIDAR_PAINEL Compara os modelos de 1 e 2 diodos com o que o datasheet publica.
 %   v.erroPmax_STC, v.erroVoc_STC : erro relativo em STC   [1d 2d]
@@ -658,7 +644,6 @@ end
 - [ ] **Passo 4: Script E1** (tabela de validação + figura da eficiência relativa η(G)/η(STC) dos dois modelos)
 
 ```matlab
-% matlab/experimentos/exp01_validacao_painel.m
 %EXP01 Validacao do ZTP-160M: pontos de STC, coeficiente de Pmax e baixa irradiancia.
 setup_path();
 ds = datasheet_painel('ztp160m');
@@ -698,7 +683,6 @@ O datasheet informa o **NMOT** (IEC 61215): temperatura da célula com G = 800 W
 - [ ] **Passo 1: Teste (falha)**
 
 ```matlab
-% matlab/tests/test_termico.m
 function tests = test_termico
 tests = functiontests(localfunctions);
 end
@@ -743,7 +727,6 @@ end
 - [ ] **Passo 2: Implementar**
 
 ```matlab
-% matlab/termico/termico_dTdt.m
 function dTdt = termico_dTdt(T, G, Tamb, vw, Pel, pt)
 %TERMICO_DTDT Balanco de energia do modulo como um unico corpo [K/s].
 %   m*cp*dT/dt = sol absorvido - eletricidade - conveccao - radiacao
@@ -762,7 +745,6 @@ end
 ```
 
 ```matlab
-% matlab/termico/calibrar_nmot.m
 function pt = calibrar_nmot(pt, ds)
 %CALIBRAR_NMOT Ajusta pt.kh para que o regime permanente reproduza o NMOT.
 %   Condicao NMOT: G = 800 W/m^2, Tamb = 20 C, vento 1 m/s, modulo no MPP.
@@ -777,7 +759,6 @@ end
 ```
 
 ```matlab
-% matlab/termico/parametros_termicos.m
 function pt = parametros_termicos(ds)
 %PARAMETROS_TERMICOS Parametros do modelo termico do modulo, calibrado pelo NMOT.
 pt.A = ds.A;             % area do modulo [m^2]
@@ -802,7 +783,6 @@ end
 - [ ] **Passo 1: Teste (falha)**
 
 ```matlab
-% matlab/tests/test_conversor.m
 function tests = test_conversor
 tests = functiontests(localfunctions);
 end
@@ -847,7 +827,6 @@ end
 - [ ] **Passo 2: Implementar**
 
 ```matlab
-% matlab/conversor/parametros_conversor.m
 function pc = parametros_conversor(p, Vbat)
 %PARAMETROS_CONVERSOR Buck-boost dimensionado pelo ripple no MPP em STC.
 if nargin < 2, Vbat = 12; end
@@ -866,7 +845,6 @@ end
 ```
 
 ```matlab
-% matlab/conversor/conversor_ideal.m
 function pc = conversor_ideal(pc)
 %CONVERSOR_IDEAL Mesmo conversor sem perdas.
 pc.rL = 0;  pc.Ron = 0;  pc.VF = 0;  pc.RD = 0;  pc.ttr = 0;
@@ -874,7 +852,6 @@ end
 ```
 
 ```matlab
-% matlab/conversor/conversor_medio_rhs.m
 function dx = conversor_medio_rhs(vpv, iL, ipv, d, pc)
 %CONVERSOR_MEDIO_RHS Derivadas do modelo medio com perdas: [dv_pv/dt; di_L/dt].
 dv = (ipv - d * iL) / pc.C;
@@ -885,7 +862,6 @@ end
 ```
 
 ```matlab
-% matlab/conversor/equilibrio_conversor.m
 function eq = equilibrio_conversor(vpv, ipv, pc)
 %EQUILIBRIO_CONVERSOR Regime permanente do modelo medio para (vpv, ipv) impostos.
 if ipv <= 0
@@ -905,7 +881,6 @@ end
 ```
 
 ```matlab
-% matlab/conversor/verifica_ccm.m
 function ccm = verifica_ccm(vpv, d, iL, pc)
 %VERIFICA_CCM true se a corrente no indutor nao zera (conducao continua).
 ccm = iL > vpv * d / (pc.L * pc.fs) / 2;
@@ -926,7 +901,6 @@ end
 - [ ] **Passo 1: Teste (falha)**
 
 ```matlab
-% matlab/tests/test_chaveado_medio.m
 function tests = test_chaveado_medio
 tests = functiontests(localfunctions);
 end
@@ -962,7 +936,6 @@ end
 - [ ] **Passo 2: Implementar**
 
 ```matlab
-% matlab/conversor/sim_chaveado.m
 function r = sim_chaveado(t_fim, dfun, G, T, p, pc, x0)
 %SIM_CHAVEADO Buck-boost chaveado alimentado pelo painel (Euler, 200 passos/periodo).
 %   Diodo bloqueia corrente reversa: i_L >= 0 (captura DCM).
@@ -989,7 +962,6 @@ end
 ```
 
 ```matlab
-% matlab/conversor/sim_medio_aberta.m
 function r = sim_medio_aberta(t_fim, dfun, G, T, p, pc, x0)
 %SIM_MEDIO_ABERTA Modelo medio + painel como DAE (ode15s, matriz de massa).
 %   x = [v_pv; i_L; I; Vd_1..Vd_N]; G pode ser vetor fixo ou funcao de t.
@@ -1025,7 +997,6 @@ end
 - [ ] **Passo 4: Script E3** (figura do relatório: degrau de d, chaveado × médio; e uma segunda simulação em G = 50 W/m² mostrando DCM e o erro do modelo médio)
 
 ```matlab
-% matlab/experimentos/exp03_chaveado_medio.m
 %EXP03 Modelo chaveado x medio em CCM (STC) e em DCM (baixa irradiancia).
 setup_path();
 p = parametros_painel('ztp160m');  pc = parametros_conversor(p, 12);
@@ -1061,7 +1032,6 @@ exportgraphics(gcf, fullfile(raiz_projeto(), 'relatorio', 'figs', 'e3_chaveado_m
 - [ ] **Passo 1: Teste (falha)**
 
 ```matlab
-% matlab/tests/test_linearizacao.m
 function tests = test_linearizacao
 tests = functiontests(localfunctions);
 end
@@ -1106,7 +1076,6 @@ end
 - [ ] **Passo 2: Implementar**
 
 ```matlab
-% matlab/controle/linearizar_planta.m
 function sys = linearizar_planta(op, p, pc)
 %LINEARIZAR_PLANTA Modelo de pequenos sinais (A, B, C) do conversor + painel.
 %   op: .vpv [V], .G (1 x Nsub), .T [K]. Equilibrio com d tal que v_pv = op.vpv.
@@ -1130,7 +1099,6 @@ end
 ```
 
 ```matlab
-% matlab/controle/resposta_freq.m
 function H = resposta_freq(sys, w)
 %RESPOSTA_FREQ H(jw) = C (jwI - A)^-1 B + D, para cada w (substitui bode/freqresp).
 H = zeros(size(w));
@@ -1142,7 +1110,6 @@ end
 ```
 
 ```matlab
-% matlab/controle/gvd_analitico.m
 function H = gvd_analitico(sys, pc, w)
 %GVD_ANALITICO G_vd(jw) do conversor sem perdas (expressao da proposta).
 s = 1j * w;
@@ -1164,7 +1131,6 @@ end
 - [ ] **Passo 1: Teste (falha)**
 
 ```matlab
-% matlab/tests/test_controle.m
 function tests = test_controle
 tests = functiontests(localfunctions);
 end
@@ -1192,7 +1158,6 @@ end
 - [ ] **Passo 2: Implementar**
 
 ```matlab
-% matlab/controle/margens.m
 function m = margens(Lfun, w)
 %MARGENS Margens de fase e de ganho de L(jw) por varredura (substitui margin).
 L = Lfun(w);
@@ -1219,7 +1184,6 @@ end
 ```
 
 ```matlab
-% matlab/controle/resposta_degrau_mf.m
 function [t, v, ts] = resposta_degrau_mf(sys, ctl, t_fim)
 %RESPOSTA_DEGRAU_MF Degrau unitario em V_ref na malha fechada linear.
 %   d~ = Kp*(e + xi/Ti), e = v~ - r (sinal invertido: planta tem ganho negativo).
@@ -1241,7 +1205,6 @@ end
 ```
 
 ```matlab
-% matlab/controle/projeto_pi.m
 function [ctl, rel] = projeto_pi(p, pc)
 %PROJETO_PI PI de tensao do painel com a maior banda que mantem MF >= 45 graus
 %   e MG >= 6 dB em todos os pontos de operacao de robustez.
@@ -1309,7 +1272,6 @@ Interface comum: `[Vref, e] = mppt_X(V, I, e, cfg)` — chamado a cada `Ta` com 
 - [ ] **Passo 1: Teste (falha)**
 
 ```matlab
-% matlab/tests/test_mppt.m
 function tests = test_mppt
 tests = functiontests(localfunctions);
 end
@@ -1364,7 +1326,6 @@ end
 - [ ] **Passo 2: Implementar**
 
 ```matlab
-% matlab/mppt/config_mppt.m
 function cfg = config_mppt(p)
 %CONFIG_MPPT Configuracao padrao comum aos algoritmos.
 c = curva_pv(1000 * ones(1, p.Nsub), p.Tn, p);
@@ -1383,7 +1344,6 @@ end
 ```
 
 ```matlab
-% matlab/mppt/mppt_po.m
 function [Vref, e] = mppt_po(V, I, e, cfg)
 %MPPT_PO Perturba e Observa: se a potencia caiu, inverte a direcao.
 P = V * I;
@@ -1399,7 +1359,6 @@ end
 ```
 
 ```matlab
-% matlab/mppt/mppt_inc.m
 function [Vref, e] = mppt_inc(V, I, e, cfg)
 %MPPT_INC Condutancia incremental: dI/dV = -I/V no MPP.
 if isempty(e)
@@ -1425,7 +1384,6 @@ end
 ```
 
 ```matlab
-% matlab/mppt/mppt_pso.m
 function [Vref, e] = mppt_pso(V, I, e, cfg)
 %MPPT_PSO Enxame de particulas com avaliacao sequencial (uma particula por Ta).
 %   Cada chamada recebe a medicao da particula aplicada na chamada anterior.
@@ -1470,7 +1428,6 @@ end
 ```
 
 ```matlab
-% matlab/mppt/mppt_fixo.m
 function [Vref, e] = mppt_fixo(~, ~, e, cfg)
 %MPPT_FIXO Referencia constante (testes da malha de tensao e oraculo).
 Vref = cfg.Vref0;
@@ -1478,7 +1435,6 @@ end
 ```
 
 ```matlab
-% matlab/mppt/rastrear_estatico.m
 function r = rastrear_estatico(alg, cfg, Gfun, T, p, nPassos)
 %RASTREAR_ESTATICO MPPT sobre o mapa estatico (tensao assentada a cada passo).
 e = [];  V = cfg.Vref0;  z = [];
@@ -1496,7 +1452,6 @@ end
 - [ ] **Passo 4: Script E5** (tabela: 3 algoritmos × 6 padrões de sombra × 10 sementes do PSO → eficiência final e passos até convergir)
 
 ```matlab
-% matlab/experimentos/exp05_mppt_estatico.m
 %EXP05 Eficiencia de P&O, InC e PSO em padroes de sombra estaticos.
 setup_path();
 p = parametros_painel('ztp160m');  cfg = config_mppt(p);
@@ -1534,7 +1489,6 @@ disp(groupsummary(tab, {'sombra', 'algoritmo'}, {'mean', 'min'}, 'eta'));
 - [ ] **Passo 1: Teste (falha)**
 
 ```matlab
-% matlab/tests/test_sim_dinamica.m
 function tests = test_sim_dinamica
 tests = functiontests(localfunctions);
 end
@@ -1574,7 +1528,6 @@ end
 - [ ] **Passo 2: Implementar**
 
 ```matlab
-% matlab/cenarios/cenario_constante.m
 function cen = cenario_constante(G, Tamb, vw, t_fim)
 %CENARIO_CONSTANTE Cenario com G (1 x Nsub), Tamb [K] e vento constantes.
 cen.G = @(t) G;  cen.Tamb = @(t) Tamb;  cen.vw = @(t) vw;  cen.t_fim = t_fim;
@@ -1582,7 +1535,6 @@ end
 ```
 
 ```matlab
-% matlab/simulacao/oraculo_pmax.m
 function [Pg, Vg] = oraculo_pmax(G, T, p)
 %ORACULO_PMAX Maximo GLOBAL da curva P-V: varredura grossa + refinamento local.
 c = curva_pv(G, T, p, 150);
@@ -1594,7 +1546,6 @@ end
 ```
 
 ```matlab
-% matlab/simulacao/sim_dinamica.m
 function r = sim_dinamica(cen, alg, cfg, ctl, p, pc, pt, op)
 %SIM_DINAMICA Modelo medio com perdas + PI + MPPT + termico, como DAE.
 %   x = [v_pv; i_L; xi; T; I; Vd_1..Vd_N]. MPPT atualiza V_ref a cada ctl.Ta.
@@ -1695,7 +1646,6 @@ end
 - [ ] **Passo 1: Teste (falha)**
 
 ```matlab
-% matlab/tests/test_quase_estatica.m
 function tests = test_quase_estatica
 tests = functiontests(localfunctions);
 end
@@ -1716,7 +1666,6 @@ end
 - [ ] **Passo 2: Implementar**
 
 ```matlab
-% matlab/simulacao/sim_quase_estatica.m
 function r = sim_quase_estatica(cen, alg, cfg, ctl, p, pc, pt, op)
 %SIM_QUASE_ESTATICA Conversor + PI assumidos assentados a cada Ta (v_pv = V_ref).
 %   Termico integrado por Euler com passo Ta. Oraculo a cada op.dt_oraculo [s].
@@ -1775,7 +1724,6 @@ end
 - [ ] **Passo 2: Teste (falha)**
 
 ```matlab
-% matlab/tests/test_cenarios.m
 function tests = test_cenarios
 tests = functiontests(localfunctions);
 end
@@ -1821,7 +1769,6 @@ end
 - [ ] **Passo 3: Implementar**
 
 ```matlab
-% matlab/cenarios/perfil_en50530.m
 function cen = perfil_en50530(arq, Nsub, Tamb, vw)
 %PERFIL_EN50530 Irradiancia uniforme G(t) dos ensaios dinamicos da EN 50530 (Anexo B).
 %   Cada linha da tabela gera: espera em G_baixo e depois 'repeticoes' trapezios
@@ -1861,7 +1808,6 @@ end
 ```
 
 ```matlab
-% matlab/cenarios/aplicar_sombras.m
 function cen = aplicar_sombras(cen, ev)
 %APLICAR_SOMBRAS Multiplica G por 'fator' entre t_ini e t_fim (rampas de rampa_s).
 %   ev.sub = 0 -> todos os submodulos (nuvem); sub = j -> so o submodulo j.
@@ -1884,7 +1830,6 @@ end
 ```
 
 ```matlab
-% matlab/cenarios/baixar_pvgis.m
 function arq = baixar_pvgis(ano)
 %BAIXAR_PVGIS Serie horaria do PVGIS para Florianopolis no plano do modulo.
 %   Conferir nomes dos parametros em https://joint-research-centre.ec.europa.eu/pvgis
@@ -1899,7 +1844,6 @@ end
 ```
 
 ```matlab
-% matlab/cenarios/dia_florianopolis.m
 function cen = dia_florianopolis(arq, dia, Nsub)
 %DIA_FLORIANOPOLIS Cenario de um dia (t em segundos desde 00:00, hora UTC do PVGIS).
 %   dia: datetime (hora local). O PVGIS entrega UTC; converte para UTC-3, de modo
@@ -1966,7 +1910,6 @@ end
 - [ ] **Passo 1: E2 — curvas com sombra** (o `exemplo_sombreamento.m` com `parametros_painel('ztp160m')`, salvando `relatorio/figs/e2_curvas_sombra.pdf` e `resultados/e2_picos.csv`).
 
 ```matlab
-% matlab/experimentos/exp02_curvas_sombra.m
 %EXP02 Curvas I-V e P-V do ZTP-160M sob sombreamento parcial.
 setup_path();
 p = parametros_painel('ztp160m');
@@ -1995,7 +1938,6 @@ writetable(cell2table(linhas, 'VariableNames', {'cenario', 'V', 'P', 'global'}),
 - [ ] **Passo 2: E4 — controle** (Bode de G_vd nos pontos de robustez; laço aberto com o PI; degrau linear × não linear)
 
 ```matlab
-% matlab/experimentos/exp04_controle.m
 %EXP04 Bode da planta em varios pontos, margens do PI e validacao do degrau.
 setup_path();
 p = parametros_painel('ztp160m');  pc = parametros_conversor(p, 12);
@@ -2026,7 +1968,6 @@ end
 - [ ] **Passo 3: E6 — EN 50530** (quase-estático no perfil inteiro; dinâmico num trecho de 2 rampas para figura). Ajuste de `delta` do P&O/InC: varrer `delta ∈ {0,5; 1; 2} % de Voc` e reportar o melhor de cada.
 
 ```matlab
-% matlab/experimentos/exp06_en50530.m
 %EXP06 Eficiencia dinamica (perfil EN 50530) de P&O, InC e PSO.
 setup_path();
 p = parametros_painel('ztp160m');  pc = parametros_conversor(p, 12);
@@ -2052,7 +1993,6 @@ disp(tab);
 - [ ] **Passo 4: E7 — dia em Florianópolis** com sombra de poste e nuvens; tabela de energia por algoritmo e **ablação** (completo / sem térmico / sem perdas). Eventos sintéticos (documentar no relatório):
 
 ```matlab
-% matlab/experimentos/exp07_dia.m
 %EXP07 Dia real em Florianopolis com sombras sinteticas: energia e ablacao.
 setup_path();
 p = parametros_painel('ztp160m');  pc = parametros_conversor(p, 12);
@@ -2111,7 +2051,6 @@ Antes de rodar: conferir que `resultados/dia_escolhido.txt` existe (Tarefa 12, P
 - [ ] **Passo 5: E8 — linha de base do trabalho anterior**: mesmo dia, sem sombras; modelo "anterior" = `extrair_parametros(ds, '1d')`, `conversor_ideal(pc)`, `termico = false`; modelo completo = 2d, perdas, térmico; ambos com P&O. Saída `resultados/e8_baseline.csv` com a diferença percentual de energia → responde "quanto as simplificações erravam".
 
 ```matlab
-% matlab/experimentos/exp08_baseline.m
 %EXP08 Modelo do trabalho anterior x modelo completo no mesmo dia (sem sombra).
 setup_path();
 ds = datasheet_painel('ztp160m');
