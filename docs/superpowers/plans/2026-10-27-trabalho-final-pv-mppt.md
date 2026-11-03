@@ -1161,7 +1161,8 @@ end
 function test_margens_sistema_conhecido(tc)
 % L(s) = 10/(s(s+1)(s+10)): wc e MF conferidos pela definicao; MG = 11 (w180 = sqrt(10))
 L = @(w) 10 ./ ((1j * w) .* (1j * w + 1) .* (1j * w + 10));
-m = margens(L, logspace(-2, 3, 20000));
+wg = logspace(-2, 3, 20000);
+m = margens(wg, L(wg));
 wc = fzero(@(w) abs(L(w)) - 1, [0.1 10]);
 verifyEqual(tc, m.wc, wc, 'RelTol', 1e-3);
 verifyEqual(tc, m.PM, 180 + rad2deg(angle(L(wc))), 'AbsTol', 0.1);
@@ -1175,33 +1176,42 @@ verifyGreaterThanOrEqual(tc, rel.PMmin, 45);
 verifyGreaterThanOrEqual(tc, rel.GMmin, 6);
 verifyGreaterThan(tc, ctl.Kp, 0);
 verifyLessThan(tc, ctl.ts, 0.02);
+verifyGreaterThanOrEqual(tc, numel(rel.ops), 8);    % quase todos os pontos em CCM
 end
 ```
 
 - [ ] **Passo 2: Implementar**
 
 ```matlab
-function m = margens(Lfun, w)
-%MARGENS Margens de fase e de ganho de L(jw) por varredura (substitui margin).
-L = Lfun(w);
+function m = margens(w, L)
+%MARGENS Margens de fase e de ganho a partir de L(jw) amostrado em w
+%   (substitui margin, que e da Control System Toolbox).
+%   m.wc, m.PM: cruzamento de ganho (|L| = 1) e margem de fase [graus]
+%   m.w180, m.GM: cruzamento de fase (-180 graus) e margem de ganho [dB]
+%   Inf quando o cruzamento nao existe na faixa de w.
 magn = abs(L);
 fase = unwrap(angle(L)) * 180 / pi;
+
+% Cruzamento de ganho: primeiro ponto em que |L| passa de >= 1 para < 1
 k = find(magn(1:end - 1) >= 1 & magn(2:end) < 1, 1);
 if isempty(k)
     m.wc = NaN;  m.PM = Inf;
 else
+    % interpola em log|L| (|L| varia exponencialmente com w no Bode)
     m.wc = interp1(log(magn(k:k + 1)), w(k:k + 1), 0);
-    m.PM = 180 + interp1(w(k:k + 1), fase(k:k + 1), m.wc);
-    m.PM = mod(m.PM + 180, 360) - 180;
+    fase_wc = interp1(w(k:k + 1), fase(k:k + 1), m.wc);
+    m.PM = mod(180 + fase_wc + 180, 360) - 180;       % leva para (-180, 180]
 end
-fr = fase + 180;                         % cruzamento de -180 (mod 360)
-fr = mod(fr + 180, 360) - 180;
+
+% Cruzamento de fase: fase + 180 muda de sinal (modulo 360)
+fr = mod(fase + 180 + 180, 360) - 180;
 j = find(fr(1:end - 1) .* fr(2:end) < 0 & abs(diff(fr)) < 180, 1);
 if isempty(j)
     m.w180 = NaN;  m.GM = Inf;
 else
     m.w180 = interp1(fr(j:j + 1), w(j:j + 1), 0);
-    m.GM = -20 * log10(abs(Lfun(m.w180)));
+    magn180 = exp(interp1(w(j:j + 1), log(magn(j:j + 1)), m.w180));
+    m.GM = -20 * log10(magn180);
 end
 end
 ```
@@ -1230,36 +1240,48 @@ end
 ```matlab
 function [ctl, rel] = projeto_pi(p, pc)
 %PROJETO_PI PI de tensao do painel com a maior banda que mantem MF >= 45 graus
-%   e MG >= 6 dB em todos os pontos de operacao de robustez.
+%   e MG >= 6 dB em todos os pontos de operacao de robustez em CCM.
 %   Zero do PI em wc/5 (Ti = 5/wc), abaixo do cruzamento.
+%   Pontos em DCM ficam fora da verificacao (o modelo linear so vale em CCM)
+%   e sao listados em rel.ops_dcm.
 ops = pontos_robustez(p);
-nom = ops(1);
-sysn = linearizar_planta(nom, p, pc);
 w = logspace(0, log10(pi * pc.fs), 3000);
-sistemas = arrayfun(@(o) linearizar_planta(o, p, pc), ops);
+atraso = exp(-1j * w * pc.atraso);                    % atraso do PWM digital
+
+% A resposta da planta nao depende do PI: calcula uma vez por ponto.
+sysn = linearizar_planta(ops(1), p, pc);              % ponto nominal (MPP em STC)
+Gplanta = {};  ops_ccm = ops([]);  ops_dcm = ops([]);
+for k = 1:numel(ops)
+    sys = linearizar_planta(ops(k), p, pc);
+    if sys.ccm
+        Gplanta{end + 1} = -resposta_freq(sys, w) .* atraso; %#ok<AGROW> sinal invertido
+        ops_ccm(end + 1) = ops(k); %#ok<AGROW>
+    else
+        ops_dcm(end + 1) = ops(k); %#ok<AGROW>
+    end
+end
+
 ctl = [];
 for fc = logspace(log10(20), log10(pc.fs / 10), 60)
     wc = 2 * pi * fc;  Ti = 5 / wc;
-    Gw = -resposta_freq(sysn, wc) * exp(-1j * wc * pc.atraso);
-    Kp = 1 / abs(Gw * (1 + 1 / (1j * wc * Ti)));
-    c = struct('Kp', Kp, 'Ti', Ti, 'fc', fc);
-    PM = zeros(numel(ops), 1);  GM = PM;
-    for k = 1:numel(ops)
-        m = margens(@(ww) laco(c, sistemas(k), pc, ww), w);
+    % Kp: ganho de malha unitario em wc no ponto nominal
+    Gwc = -resposta_freq(sysn, wc) * exp(-1j * wc * pc.atraso);
+    Kp = 1 / abs(Gwc * (1 + 1 / (1j * wc * Ti)));
+    Cw = Kp * (1 + 1 ./ (1j * w * Ti));               % PI na grade de frequencias
+    PM = zeros(numel(Gplanta), 1);  GM = PM;
+    for k = 1:numel(Gplanta)
+        m = margens(w, Cw .* Gplanta{k});
         PM(k) = m.PM;  GM(k) = m.GM;
     end
-    if all(PM >= 45) && all(GM >= 6)
-        ctl = c;  rel = struct('PMmin', min(PM), 'GMmin', min(GM), 'PM', PM, 'GM', GM);
+    if all(PM >= 45) && all(GM >= 6)                  % guarda a maior banda que passa
+        ctl = struct('Kp', Kp, 'Ti', Ti, 'fc', fc);
+        rel = struct('PMmin', min(PM), 'GMmin', min(GM), 'PM', PM, 'GM', GM);
     end
 end
 assert(~isempty(ctl), 'projeto_pi:inviavel', 'Nenhuma banda atende as margens');
 [~, ~, ctl.ts] = resposta_degrau_mf(sysn, ctl, 0.05);
 ctl.Ta = 1e-3 * ceil(1.5 * ctl.ts / 1e-3);           % Femia: Ta > tempo de acomodacao
-rel.ops = ops;
-end
-
-function L = laco(c, sys, pc, w)
-L = c.Kp * (1 + 1 ./ (1j * w * c.Ti)) .* (-resposta_freq(sys, w)) .* exp(-1j * w * pc.atraso);
+rel.ops = ops_ccm;  rel.ops_dcm = ops_dcm;
 end
 
 function ops = pontos_robustez(p)
@@ -1992,6 +2014,7 @@ tab = struct2table(rel.ops);  tab.PM = rel.PM;  tab.GM = rel.GM;
 tab.G = mat2str_cell(tab.G);
 writetable(tab, fullfile(raiz_projeto(), 'resultados', 'e4_margens.csv'));
 fprintf('Ta = %.1f ms (ts = %.1f ms)\n', 1e3 * ctl.Ta, 1e3 * ctl.ts);
+fprintf('Pontos em DCM fora da verificacao: %d\n', numel(rel.ops_dcm));
 
 function c = mat2str_cell(G)
 c = cellfun(@mat2str, num2cell(G, 2), 'UniformOutput', false);
