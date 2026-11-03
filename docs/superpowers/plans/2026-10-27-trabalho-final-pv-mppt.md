@@ -6,6 +6,8 @@
 
 **Architecture:** Funções MATLAB pequenas, uma responsabilidade por arquivo, organizadas por bloco físico (`painel/`, `termico/`, `conversor/`, `controle/`, `mppt/`, `simulacao/`, `cenarios/`). Três níveis de modelo: chaveado (validação), médio em DAE com `ode15s` + matriz de massa (transitórios) e quase-estático (dia inteiro). Cada bloco tem testes `matlab.unittest`; cada experimento é um script que gera figuras em `relatorio/figs/` e tabelas em `resultados/`.
 
+**Figuras:** toda `figure(...)` de experimento usa `'Theme', 'light'` (em modo batch o MATLAB R2026b gera fundo escuro por padrão, inclusive no PDF).
+
 **Estilo de código (exigência do usuário):** código simples e direto, que um júnior entenda: nomes claros, laços explícitos em vez de vetorização obscura, sem abstrações desnecessárias, e **comentários explicando a física e a lógica** de cada equação. Todo código de implementação abaixo segue essa regra; ao executar, manter o padrão.
 
 **Tech Stack:** MATLAB R2026b **apenas o núcleo** (verificado: sem Optimization nem Control System Toolbox → Levenberg-Marquardt, resposta em frequência e margens implementados à mão); `matlab.unittest`; LaTeX via `tectonic` para o relatório; dados climáticos do PVGIS.
@@ -25,6 +27,7 @@
 | D6 | Dia em Florianópolis | PVGIS horário (lat −27,595; lon −48,548; inclinação 27°; azimute norte), dia de céu claro de verão + nuvens e sombra de poste **sintéticas e documentadas** | Dados horários não têm transitórios rápidos |
 | D7 | Relatório | LaTeX, mesmo estilo de artigo do trabalho anterior, em `relatorio/` | Continuidade com a disciplina |
 | D9 | Modelo de 2 diodos (decidido após a Tarefa 2) | **Convenção de Ishaque (2011): a₁ = 1, a₂ = 1,2, I₀₁ = I₀₂**; lei térmica **efetiva** I₀(T) ∝ T³·exp(−E_g,ef/kT) com **E_g,ef ajustado pelo Kv**, igual nos dois modelos (1d e 2d), ambos com as 5 condições | A Tarefa 2 mostrou que (i) com E_g = 1,12 eV o modelo dá Kv = −0,106 V/K contra −0,123 V/K medido (KC200GT), e (ii) o datasheet não identifica I₀₂: as 4 condições de STC fecham para qualquer I₀₂ entre 10⁻¹² e 10⁻⁵ A. A não-identificabilidade vira resultado do relatório (Tarefa 3, análise de sensibilidade à razão I₀₂/I₀₁) |
+| D10 | Resistência paralela (decidido após a Tarefa 3) | **R_p(G) = R_p,ref·(G_n/G)** (De Soto, Klein e Beckman, 2006) | Com R_p constante, o ajuste do ZTP-160M (R_p ≈ 41 Ω) previa perda de 26 % de eficiência em 200 W/m², contra 3–5 % típicos de módulos mono-Si. Em STC nada muda (extração inalterada); afeta baixa irradiância e submódulos sombreados |
 | D8 | Validação do painel | O datasheet **não tem curvas I-V**: não há o que digitalizar. Validação por (a) pontos de STC, (b) coeficiente térmico de **Pmax (−0,4 %/K), que não entra no ajuste** e serve de teste independente, (c) **NMOT 45 °C** no modelo térmico, (d) KC200GT contra Villalva | Usa só informação publicada; o relatório declara a limitação |
 
 Dados do ZTP-160M (datasheet v4.3, dez/2024): Pmax 160 W, Vmp 19,57 V, Imp 8,20 A, Voc 22,64 V, Isc 9,02 A, 33 células (3x11), área 0,82 m², NMOT 45 °C, coeficientes −0,4 %/K (Pmax), −0,34 %/K (Voc), +0,05 %/K (Isc). O trabalho anterior leu "Pmax 4,8 W / 11 células": era a divisão por célula, não o painel.
@@ -686,7 +689,7 @@ title('ZTP-160M: eficiencia relativa em baixa irradiancia');
 exportgraphics(gcf, fullfile(raiz_projeto(), 'relatorio', 'figs', 'e1_eficiencia_relativa.pdf'));
 ```
 
-- [ ] **Passo 5: Rodar E1** e conferir: erros de STC < 0,5 %; γ_P do modelo perto de −0,4 %/K; o modelo de 2 diodos deve mostrar queda de eficiência relativa maior em 200 W/m² (efeito da recombinação, a₂ = 2).
+- [ ] **Passo 5: Rodar E1** e conferir: erros de STC < 0,5 %; γ_P do modelo perto de −0,4 %/K; a eficiência relativa em 200 W/m² deve ficar entre 90 % e 100 % (com R_p(G) de De Soto, decisão D10); a diferença entre 1d e 2d é pequena e a variação ao longo da família de razões I₀₂/I₀₁ quantifica a incerteza do datasheet.
 
 - [ ] **Passo 6: Commit** `"Validacao do ZTP-160M (E1)"` (incluir `resultados/e1_*.csv` e a figura).
 
