@@ -24,6 +24,7 @@
 | D5 | Perfil EN 50530 | Tabelas B.2, B.3 e B.4 transcritas em `data/en50530_rampas.csv` a partir do relatório de ensaio TÜV Rheinland No. CN21VE2D 001 (EN 50530:2010+A1:2013) | O texto da norma é pago; os valores do relatório conferem aritmeticamente com as durações impressas. Duração total ≈ 7,0 h → simulado em modelo quase-estático |
 | D6 | Dia em Florianópolis | PVGIS horário (lat −27,595; lon −48,548; inclinação 27°; azimute norte), dia de céu claro de verão + nuvens e sombra de poste **sintéticas e documentadas** | Dados horários não têm transitórios rápidos |
 | D7 | Relatório | LaTeX, mesmo estilo de artigo do trabalho anterior, em `relatorio/` | Continuidade com a disciplina |
+| D9 | Modelo de 2 diodos (decidido após a Tarefa 2) | **Convenção de Ishaque (2011): a₁ = 1, a₂ = 1,2, I₀₁ = I₀₂**; lei térmica **efetiva** I₀(T) ∝ T³·exp(−E_g,ef/kT) com **E_g,ef ajustado pelo Kv**, igual nos dois modelos (1d e 2d), ambos com as 5 condições | A Tarefa 2 mostrou que (i) com E_g = 1,12 eV o modelo dá Kv = −0,106 V/K contra −0,123 V/K medido (KC200GT), e (ii) o datasheet não identifica I₀₂: as 4 condições de STC fecham para qualquer I₀₂ entre 10⁻¹² e 10⁻⁵ A. A não-identificabilidade vira resultado do relatório (Tarefa 3, análise de sensibilidade à razão I₀₂/I₀₁) |
 | D8 | Validação do painel | O datasheet **não tem curvas I-V**: não há o que digitalizar. Validação por (a) pontos de STC, (b) coeficiente térmico de **Pmax (−0,4 %/K), que não entra no ajuste** e serve de teste independente, (c) **NMOT 45 °C** no modelo térmico, (d) KC200GT contra Villalva | Usa só informação publicada; o relatório declara a limitação |
 
 Dados do ZTP-160M (datasheet v4.3, dez/2024): Pmax 160 W, Vmp 19,57 V, Imp 8,20 A, Voc 22,64 V, Isc 9,02 A, 33 células (3x11), área 0,82 m², NMOT 45 °C, coeficientes −0,4 %/K (Pmax), −0,34 %/K (Voc), +0,05 %/K (Isc). O trabalho anterior leu "Pmax 4,8 W / 11 células": era a divisão por célula, não o painel.
@@ -638,6 +639,40 @@ end
 ```
 
 - [ ] **Passo 3: Rodar `test_ztp160m`** — Expected: 2 `Passed`. Se `test_coeficiente_de_Pmax_independente` falhar, isso é um **resultado** (o modelo não reproduz a sensibilidade térmica do fabricante): imprimir `v.gamaP_modelo`, investigar `Eg` e os expoentes 3 e 1,5 de `celula_params` (o divisor de Eg é fixo pelo mecanismo: 1 para difusão, 2 para recombinação, independente de a₁/a₂ ajustados), e reportar no relatório em vez de afrouxar a tolerância.
+
+- [ ] **Passo 3b: Análise de identificabilidade do 2º diodo (decisão D9)**
+
+`extrair_parametros(ds, '2d', razao)` aceita um 3º argumento opcional `razao = I02_n/I01_n` (padrão 1, convenção de Ishaque). Criar `matlab/painel/identificabilidade_2d.m`:
+
+```matlab
+function tab = identificabilidade_2d(nome, razoes)
+%IDENTIFICABILIDADE_2D Mostra que o datasheet nao determina o 2o diodo.
+%   Para cada razao r = I02/I01, ajusta o modelo de 2 diodos com as mesmas
+%   5 condicoes do datasheet. Se todas fecham (residuo ~0) mas as previsoes
+%   fora do STC mudam, o parametro nao e identificavel so com o datasheet.
+if nargin < 2, razoes = [0.01 0.1 1 10 100]; end
+ds = datasheet_painel(nome);
+n = numel(razoes);
+residuo = zeros(n, 1);  Eg = zeros(n, 1);
+eta200_rel = zeros(n, 1);  gamaP = zeros(n, 1);
+for k = 1:n
+    [p, info] = extrair_parametros(ds, '2d', razoes(k));
+    residuo(k) = info.residuo;
+    Eg(k) = p.Eg;
+    uniforme = ones(1, p.Nsub);
+    P1000 = curva_pv(1000 * uniforme, p.Tn, p, 1000).Pmp;
+    P200  = curva_pv( 200 * uniforme, p.Tn, p, 1000).Pmp;
+    eta200_rel(k) = (P200 / 200) / (P1000 / 1000);      % eficiencia relativa em baixa luz
+    Pq = curva_pv(1000 * uniforme, p.Tn + 10, p, 1000).Pmp;
+    Pf = curva_pv(1000 * uniforme, p.Tn - 10, p, 1000).Pmp;
+    gamaP(k) = (Pq - Pf) / 20 / P1000;                  % coeficiente termico de Pmax
+end
+tab = table(razoes(:), residuo, Eg, eta200_rel, gamaP, ...
+    'VariableNames', {'razao_I02_I01', 'residuo', 'Eg_ef_eV', 'eta200_rel', 'gamaP_1_K'});
+end
+```
+
+Teste em `test_ztp160m.m`: todas as linhas com `residuo < 1e-6` (o datasheet é satisfeito por toda a família). No E1, gravar `resultados/e1_identificabilidade.csv` e plotar `eta200_rel` × razão (eixo log): a faixa de variação é a incerteza que o datasheet deixa na previsão em baixa irradiância, e entra na discussão do relatório.
 
 - [ ] **Passo 4: Script E1** (tabela de validação + figura da eficiência relativa η(G)/η(STC) dos dois modelos)
 
