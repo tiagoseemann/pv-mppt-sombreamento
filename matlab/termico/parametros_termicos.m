@@ -1,5 +1,9 @@
 function pt = parametros_termicos(ds)
 %PARAMETROS_TERMICOS Parametros do modelo termico do modulo, calibrado pelo NMOT.
+if ~all(isfield(ds, {'A', 'massa', 'NMOT'}))
+    error('parametros_termicos:datasheet', ...
+          'Modelo termico requer A, massa e NMOT no datasheet (so o ZTP-160M tem)');
+end
 pt.A = ds.A;             % area do modulo [m^2]
 % Capacidade termica por area = massa * calor especifico medio / area.
 % O vidro domina a massa do modulo (~70-75 %) e tem cp ~ 840 J/(kg K); a moldura de

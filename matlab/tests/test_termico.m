@@ -10,6 +10,8 @@ end
 
 function test_nmot_reproduzido(tc)
 % Na condicao NMOT (800 W/m2, 20 C, 1 m/s, no MPP) o regime permanente deve dar 45 C.
+% Confere a ida e volta da calibracao (mesma formula de Pel(T) do calibrar_nmot); a
+% verificacao independente vem quando Pel sair do modelo eletrico.
 ds = tc.TestData.ds;  pt = tc.TestData.pt;
 Pel = @(T) ds.Pmax * 0.8 * (1 + ds.gamaP * (T - 298.15));
 Tss = fzero(@(T) termico_dTdt(T, 800, 293.15, 1, Pel(T), pt), [250 400]);
@@ -41,4 +43,13 @@ pt = tc.TestData.pt;
 T0 = fzero(@(T) termico_dTdt(T, 1000, 298.15, 1, 0, pt), [250 400]);
 Tp = fzero(@(T) termico_dTdt(T, 1000, 298.15, 1, 150, pt), [250 400]);
 verifyLessThan(tc, Tp, T0);
+end
+
+function test_noite_abaixo_do_ambiente(tc)
+% Sem sol, sem eletricidade e sem vento, o modulo irradia para o ceu frio (Tceu < Tamb)
+% e esfria abaixo da temperatura ambiente.
+pt = tc.TestData.pt;
+Tamb = 293.15;
+Tss = fzero(@(T) termico_dTdt(T, 0, Tamb, 0, 0, pt), [200 400]);
+verifyLessThan(tc, Tss, Tamb);
 end
