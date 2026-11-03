@@ -13,17 +13,11 @@ function [R, J, Vj, Ic, Ibp] = residuo_painel(z, Vpv, G, T, p)
 N = p.Nsub;
 G = G(:);
 
-% Parametros do submodulo (Ncel celulas em serie agrupadas)
-Vt    = p.k * T / p.q;
-Vt_s  = p.Ncel * Vt;
-Rs_s  = p.Ncel * p.Rs;
-Rp_s  = p.Ncel * p.Rp;
-Vt_bp = p.nbp * Vt;
-
-Ipv = (G / p.Gn) * (p.Ipv_n + p.Ki * (T - p.Tn));
-fT  = @(a, gam) (T / p.Tn)^gam * exp(p.q * p.Eg / (a * p.k) * (1 / p.Tn - 1 / T));
-I01 = p.I01_n * fT(p.a1, 3);
-I02 = p.I02_n * fT(p.a2, 1.5);
+% Parametros do submodulo (dependentes de G e T), calculados em celula_params
+c = celula_params(G, T, p);
+Vt_s = c.Vt_s;  Rs_s = c.Rs_s;  Rp_s = c.Rp_s;
+Ipv = c.Ipv;  I01 = c.I01;  I02 = c.I02;
+Vt_bp = p.nbp * c.Vt;                       % tensao termica do diodo de bypass
 
 I  = z(1);
 Vd = z(2:end);

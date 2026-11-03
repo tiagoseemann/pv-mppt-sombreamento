@@ -43,7 +43,7 @@ end
 function test_bypass_conduz_quando_sombreado(tc)
 % Confere que o bypass do submodulo sombreado conduz e que a tensao fecha.
 p = tc.TestData.p;
-[I, s] = painel_sombreado(9, [1000 1000 400], p.Tn, p);
+[~, s] = painel_sombreado(9, [1000 1000 400], p.Tn, p);
 verifyLessThan(tc, s.Vj(3), -0.2);                       % submodulo 3 bypassado
 verifyEqual(tc, sum(s.Vj), 9, 'AbsTol', 1e-6);           % KVL: soma das tensoes = Vpv
 verifyGreaterThan(tc, s.Ibp(3), 1);                      % bypass carrega o excesso
