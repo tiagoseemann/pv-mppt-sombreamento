@@ -24,6 +24,9 @@ function m = margens(w, L)
 %   Quando o cruzamento nao existe na faixa de w: wc (ou w180) = NaN e a
 %   margem correspondente = Inf.
 %
+%   Para L estavel em malha aberta, so importam os cruzamentos acima de wc;
+%   aqui todos entram no minimo, o que e conservador (nunca otimista).
+%
 %   Por que olhar todos os cruzamentos: a ressonancia LC do conversor pode
 %   fazer |L| voltar a passar de 1 depois do primeiro cruzamento. A margem
 %   que vale e a pior delas.
@@ -45,10 +48,13 @@ end
 
 % Cruzamento de fase: (fase + 180), levada para [-180, 180), muda de sinal.
 % O teste abs(diff) < 180 descarta o salto artificial de +-180 da funcao mod.
+% Usa "<= 0" para nao perder uma amostra caindo exatamente em -180 graus; a
+% condicao fr(j+1) ~= 0 evita contar esse mesmo cruzamento duas vezes (ele
+% fica com o par que comeca na amostra nula).
 fr = mod(fase + 180 + 180, 360) - 180;
 m.w180 = NaN;  m.GM = Inf;
 for j = 1:numel(w) - 1
-    if fr(j) * fr(j + 1) < 0 && abs(fr(j + 1) - fr(j)) < 180
+    if fr(j) * fr(j + 1) <= 0 && fr(j + 1) ~= 0 && abs(fr(j + 1) - fr(j)) < 180
         w180j = interp1(fr(j:j + 1), w(j:j + 1), 0);
         magn180 = exp(interp1(w(j:j + 1), log(magn(j:j + 1)), w180j));
         GMj = -20 * log10(magn180);

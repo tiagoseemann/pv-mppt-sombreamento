@@ -19,6 +19,7 @@ function [t, v, ts] = resposta_degrau_mf(sys, ctl, t_fim)
 %   O atraso do PWM digital (pc.atraso, ~75 us) nao entra aqui: ele ja foi
 %   considerado nas margens e e muito menor que o tempo de acomodacao.
 A = sys.A;  B = sys.B;  C = sys.C;  Kp = ctl.Kp;  Ti = ctl.Ti;
+n = size(A, 1);                     % numero de estados da planta
 Acl = [A + B * Kp * C, B * Kp / Ti; C, 0];
 Bcl = [-B * Kp; -1];
 
@@ -27,19 +28,18 @@ Bcl = [-B * Kp; -1];
 nPassos = 4000;
 dt = t_fim / nPassos;
 Ad = expm(Acl * dt);
-Bd = Acl \ ((Ad - eye(3)) * Bcl);
-z = zeros(3, 1);  t = (0:nPassos).' * dt;  v = zeros(size(t));
+Bd = Acl \ ((Ad - eye(n + 1)) * Bcl);
+z = zeros(n + 1, 1);  t = (0:nPassos).' * dt;  v = zeros(size(t));
 for k = 2:numel(t)
     z = Ad * z + Bd;
-    v(k) = C * z(1:2);
+    v(k) = C * z(1:n);
 end
 
-% Tempo de acomodacao: ultimo instante fora da faixa de +-2 % do valor final
+% Tempo de acomodacao: ultimo instante fora da faixa de +-2 % do valor final.
+% v(1) = 0 esta sempre fora da faixa, entao "ultimo" nunca e vazio.
 fora = abs(v - 1) > 0.02;
 ultimo = find(fora, 1, 'last');
-if isempty(ultimo)
-    ts = 0;
-elseif ultimo == numel(t)
+if ultimo == numel(t)
     ts = Inf;          % ainda fora da faixa no fim: nao acomodou em t_fim
 else
     ts = t(ultimo + 1);
