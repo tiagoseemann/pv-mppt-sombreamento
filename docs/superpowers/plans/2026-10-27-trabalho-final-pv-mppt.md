@@ -1890,7 +1890,11 @@ gi = griddedInterpolant(h, G, 'pchip', 'nearest');
 ti = griddedInterpolant(h, Ta, 'pchip', 'nearest');
 vi = griddedInterpolant(h, vw, 'pchip', 'nearest');
 cen.G = @(t) max(gi(t), 0) * ones(1, Nsub);
-cen.Tamb = @(t) ti(t);  cen.vw = @(t) max(vi(t), 0);
+cen.Tamb = @(t) ti(t);
+% Vento: o PVGIS da WS10m (10 m de altura); Watmuff usa o vento junto ao modulo.
+% Lei de potencia do perfil de vento (expoente 1/7, terreno aberto), modulo a ~2 m:
+fator_altura = (2 / 10)^(1/7);                 % ~0,79
+cen.vw = @(t) fator_altura * max(vi(t), 0);
 cen.t_fim = h(end);  cen.t_ini_dia = h(find(G > 5, 1));  cen.t_fim_dia = h(find(G > 5, 1, 'last'));
 end
 ```
