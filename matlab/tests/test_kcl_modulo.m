@@ -16,14 +16,15 @@ verifyEqual(tc, F, 0, 'AbsTol', 1e-6);
 end
 
 function test_derivada_analitica(tc)
-% Confere dI/dV = -g/(1 + Rs*g) contra diferenca finita central da curva.
+% Confere a derivada analitica dIdV de kcl_modulo contra diferenca finita central da curva.
 p = parametros_painel('generico');
 q = p;  q.Nsub = 1;  q.Ncel = p.Ns;
+% I0bp nao e zerado: a 17 V o bypass esta em reversa, sua derivada e ~0 e
+% nao afeta dI/dV com RelTol 1e-3.
 V = 17;  h = 1e-4;
 I  = painel_sombreado(V, 1000, p.Tn, q);
 Ip = painel_sombreado(V + h, 1000, p.Tn, q);
 Im = painel_sombreado(V - h, 1000, p.Tn, q);
-[~, g] = kcl_modulo(V, I, 1000, p.Tn, p);
-dIdV = -g / (1 + p.Ns * p.Rs * g);
+[~, ~, dIdV] = kcl_modulo(V, I, 1000, p.Tn, p);
 verifyEqual(tc, dIdV, (Ip - Im) / (2 * h), 'RelTol', 1e-3);
 end

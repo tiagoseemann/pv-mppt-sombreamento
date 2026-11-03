@@ -1,7 +1,8 @@
-function [F, g] = kcl_modulo(V, I, G, T, p)
+function [F, g, dIdV] = kcl_modulo(V, I, G, T, p)
 %KCL_MODULO Residuo explicito da equacao do modulo inteiro (sem sombra) em (V, I).
-%   F = 0 quando (V, I) esta sobre a curva. g = -dIc/dVd, usado em
-%   dI/dV = -g / (1 + Rs_modulo * g).
+%   V, I, G, T sao escalares (G = irradiancia uniforme do modulo).
+%   F = 0 quando (V, I) esta sobre a curva. g = -dIc/dVd.
+%   dIdV = inclinacao dI/dV da curva I-V no ponto (V, I).
 
 % Modulo inteiro tratado como um unico grupo de Ns celulas em serie
 q = p;  q.Ncel = p.Ns;
@@ -17,4 +18,8 @@ F = c.Ipv - c.I01 * (e1 - 1) - c.I02 * (e2 - 1) - Vd / c.Rp_s - I;
 
 % g = -dIc/dVd: derivada dos diodos mais condutancia de Rp
 g = c.I01 * e1 / (p.a1 * c.Vt_s) + c.I02 * e2 / (p.a2 * c.Vt_s) + 1 / c.Rp_s;
+
+% Derivacao implicita de F(V, I) = 0: dI/dV = -(dF/dV)/(dF/dI)
+% com dF/dV = -g e dF/dI = -(1 + Rs_s*g), logo dI/dV = -g / (1 + Rs_s*g)
+dIdV = -g / (1 + c.Rs_s * g);
 end

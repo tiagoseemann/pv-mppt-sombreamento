@@ -12,7 +12,8 @@ function [I, sol] = painel_sombreado(Vpv, G, T, p, z0)
 %   Resolve residuo_painel(z) = 0 por Newton-Raphson com passo limitado.
 
 N = p.Nsub;
-Vt_s = p.Ncel * p.k * T / p.q;
+c = celula_params(G, T, p);
+Vt_s = c.Vt_s;
 
 if nargin < 5 || isempty(z0)
     z0 = [p.Ipv_n * min(G) / p.Gn; repmat(max(Vpv, 0) / N, N, 1) + 0.5 * Vt_s];
