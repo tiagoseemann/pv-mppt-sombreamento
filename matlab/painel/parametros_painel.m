@@ -1,19 +1,31 @@
 function p = parametros_painel(nome)
 %PARAMETROS_PAINEL Parametros do modulo FV com submodulos e diodos de bypass.
 %   p = parametros_painel('generico')  painel generico de 36 celulas (~140 W)
+%   p = parametros_painel('ztp160m')   painel real (tambem 'kc200gt')
 %   Caso 'generico': valores provisorios, mantidos como referencia de
-%   regressao; paineis reais entram na Tarefa 2.
+%   regressao dos testes de sombreamento.
+%   Paineis reais: parametros do modelo de 2 diodos extraidos do datasheet
+%   (extrair_parametros). A extracao e guardada em data/params_<nome>.mat
+%   para nao ser refeita a cada chamada; apague esse arquivo se mudar a
+%   extracao ou o datasheet.
 
 if nargin < 1, nome = 'generico'; end
 if ~strcmpi(nome, 'generico')
-    error('parametros_painel:nome', 'Painel "%s" ainda nao suportado', nome);
+    arq = fullfile(raiz_projeto(), 'data', ['params_' lower(nome) '.mat']);
+    if isfile(arq)
+        s = load(arq);  p = s.p;
+    else
+        p = extrair_parametros(datasheet_painel(nome), '2d');
+        save(arq, 'p');
+    end
+    return
 end
 p.nome = 'generico';
 
 % Constantes fisicas
 p.q  = 1.602176634e-19;     % carga do eletron [C]
 p.k  = 1.380649e-23;        % constante de Boltzmann [J/K]
-p.Eg = 1.12;                % gap do silicio [eV]
+p.Eg = 1.12;                % gap efetivo [eV] (aqui o do silicio)
 
 % Condicoes nominais (STC)
 p.Gn = 1000;                % [W/m^2]

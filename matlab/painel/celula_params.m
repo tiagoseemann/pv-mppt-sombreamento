@@ -19,12 +19,12 @@ c.Rp_s = p.Ncel * p.Rp;
 % Fotocorrente: proporcional a irradiancia, corrigida linearmente pela temperatura
 c.Ipv  = (G(:) / p.Gn) * (p.Ipv_n + p.Ki * (T - p.Tn));
 
-% Correntes de saturacao: a dependencia com T vem do MECANISMO de conducao,
-% nao do fator de idealidade ajustado (a1, a2), entao os divisores sao fixos.
-%   Difusao (diodo 1):     I01 ~ ni^2 ~ T^3   * exp(-Eg/(k*T))
-%   Recombinacao (diodo 2): I02 ~ ni  ~ T^1,5 * exp(-Eg/(2*k*T))
-% Por isso os expoentes 3 e 1,5 pertencem ao mecanismo: um modelo de 1 diodo
-% com a agrupado (~1,3) mantem a forma da difusao (De Soto).
-c.I01  = p.I01_n * (T / p.Tn)^3   * exp(p.q * p.Eg / p.k       * (1 / p.Tn - 1 / T));
-c.I02  = p.I02_n * (T / p.Tn)^1.5 * exp(p.q * p.Eg / (2 * p.k) * (1 / p.Tn - 1 / T));
+% Correntes de saturacao: lei EFETIVA, a mesma para os dois diodos,
+%   I0k(T) = I0k_n * (T/Tn)^3 * exp(Eg/k * (1/Tn - 1/T)).
+% Modulos reais se desviam da teoria da juncao ideal; por isso p.Eg e um gap
+% EFETIVO, calibrado pelo coeficiente Kv de Voc do datasheet, que absorve
+% efeitos que a lei simples ignora. Com o gap do silicio (1,12 eV) o modelo
+% da Kv = -0,106 V/K para o KC200GT, contra -0,123 V/K medido.
+c.I01  = p.I01_n * (T / p.Tn)^3 * exp(p.q * p.Eg / p.k * (1 / p.Tn - 1 / T));
+c.I02  = p.I02_n * (T / p.Tn)^3 * exp(p.q * p.Eg / p.k * (1 / p.Tn - 1 / T));
 end
