@@ -1705,7 +1705,7 @@ else
     T = op.T;
 end
 Vref = cfg.Vref0;  e = [];  z = [];  Pg = 0;
-E = 0;  Eg = 0;  Eout = 0;  nDCM = 0;
+E = 0;  Eg = 0;  Eout = 0;  nDCM = 0;  nInviavel = 0;
 r.t = zeros(nK, 1);  r.V = r.t;  r.P = r.t;  r.Pg = r.t;  r.T = r.t;
 for k = 1:nK
     t = op.t_ini + (k - 0.5) * Ta;
@@ -1716,8 +1716,14 @@ for k = 1:nK
     Pout = P;
     if op.perdas && I > 0
         eq = equilibrio_conversor(Vref, I, pc);
-        Pout = eq.Pout;
-        nDCM = nDCM + ~verifica_ccm(Vref, eq.d, eq.iL, pc);
+        if eq.viavel
+            Pout = eq.Pout;
+            nDCM = nDCM + ~verifica_ccm(Vref, eq.d, eq.iL, pc);
+        else
+            % d necessario fora de [Dmin, Dmax]: o conversor nao opera neste ponto
+            Pout = 0;
+            nInviavel = nInviavel + 1;
+        end
     end
     if op.termico
         T = T + Ta * termico_dTdt(T, mean(G), cen.Tamb(t), cen.vw(t), P, pt);
@@ -1727,7 +1733,7 @@ for k = 1:nK
     [Vref, e] = alg(Vref, I, e, cfg);
 end
 r.E = E;  r.Eg = Eg;  r.Eout = Eout;  r.eta = E / Eg;
-r.eta_conv = Eout / max(E, eps);  r.fracDCM = nDCM / nK;
+r.eta_conv = Eout / max(E, eps);  r.fracDCM = nDCM / nK;  r.fracInviavel = nInviavel / nK;
 end
 ```
 
