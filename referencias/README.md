@@ -8,6 +8,16 @@ Os PDFs ficam em [`pdfs/`](pdfs/), nomeados pela chave (`villalva.pdf`, `femia.p
 A maioria é IEEE/Elsevier, com acesso pelo Periódicos CAPES (login CAFe da UFSC). Os PDFs
 **não são versionados** (direitos autorais); só este índice e o `.bib` vão para o git.
 
+**Já em `pdfs/`:** `villalva`, `villalvarep`, `femia`, `esram`, `patel`, `ishaquepso`,
+`ishaquepso2`, `miyatake`, `liupso`, `anterior` (artigos IEEE baixados pela VPN da UFSC).
+
+**Falta baixar à mão** (pela VPN; os sites pedem verificação anti-robô no navegador):
+[`hussein`](https://doi.org/10.1049/ip-gtd:19951577) (IET),
+[`ishaque`](https://www.sciencedirect.com/science/article/pii/S0927024810005477) e
+[`skoplaki`](https://www.sciencedirect.com/science/article/pii/S0960148108001353) (ScienceDirect).
+O manual `pinho` é gratuito no site do CRESESB (abrir pelo navegador). Livros (`barbi`,
+`erickson`, `duffie`), norma (`en50530`) e datasheets não estão disponíveis como PDF aberto.
+
 Legenda: **[P]** citada na proposta · **[C]** complementar, candidata ao relatório.
 
 ## Painel (modelo de 1 e 2 diodos, extração de parâmetros)
@@ -15,6 +25,7 @@ Legenda: **[P]** citada na proposta · **[C]** complementar, candidata ao relat�
 | Chave | Referência | Uso no trabalho |
 |---|---|---|
 | `villalva` **[P]** | Villalva, Gazoli, Ruppert Filho. Comprehensive approach to modeling and simulation of photovoltaic arrays. *IEEE Trans. Power Electron.* 24(5):1198–1208, 2009. [doi:10.1109/TPEL.2009.2013862](https://doi.org/10.1109/TPEL.2009.2013862) | Modelo de 1 diodo e ajuste nos 3 pontos do datasheet. Tabela I com o **KC200GT**, usado como benchmark da extração (Tarefa 2) |
+| `villalvarep` **[C]** | Villalva, Gazoli, Ruppert Filho. Modeling and circuit-based simulation of photovoltaic arrays. *Eletrônica de Potência* 14(1):35–45, 2009. [doi:10.18618/REP.2009.1.035045](https://doi.org/10.18618/REP.2009.1.035045) | Versão da SOBRAEP (acesso aberto, **PDF em `pdfs/villalvarep.pdf`**) com o mesmo método e o KC200GT. Substitui o artigo da TPEL enquanto ele não for baixado |
 | `ishaque` **[P]** | Ishaque, Salam, Taheri. Simple, fast and accurate two-diode model for photovoltaic modules. *Sol. Energy Mater. Sol. Cells* 95(2):586–594, 2011. [doi:10.1016/j.solmat.2010.09.023](https://doi.org/10.1016/j.solmat.2010.09.023) | Modelo de 2 diodos e simplificações para a extração |
 
 ## Sombreamento parcial e diodos de bypass
@@ -62,9 +73,10 @@ Legenda: **[P]** citada na proposta · **[C]** complementar, candidata ao relat�
 | `pinho` **[P]** | Pinho, Galdino (org.). *Manual de Engenharia para Sistemas Fotovoltaicos*. Rio de Janeiro: CEPEL/CRESESB, 2014. | Contexto brasileiro e dados de irradiação |
 | `anterior` **[P]** | Daga, Schneider Junior. *Energia Fotovoltaica com Conversor Buck-Boost*. Trabalho final de DAS5109, UFSC. | Trabalho do semestre anterior que este estende (`pdfs/anterior.pdf`) |
 
-## Datasheets (a obter)
+## Datasheets
 
-- **Kyocera KC200GT**: confirmar `Nsub` e `NOCT` antes de citar no relatório (ver plano, Tarefa 2).
-- **ZTROON ZTP-160M**: necessário para a Tarefa 3 (D8 do plano).
+Ficam em [`datasheets/`](datasheets/) e são versionados (documentos públicos do fabricante).
 
-Salvar em `pdfs/datasheet_kc200gt.pdf` e `pdfs/datasheet_ztp160m.pdf`.
+- **ZTROON ZTP-160M**: [`ZTP-160M_Datasheet_v.4.2.pdf`](datasheets/ZTP-160M_Datasheet_v.4.2.pdf), usado na Tarefa 3 (D8 do plano).
+- **Kyocera KC200GT**: a obter; confirmar `Nsub` e `NOCT` antes de citar no relatório (Tarefa 2).
+  Enquanto isso, os valores vêm da Tabela I de `villalva`.
