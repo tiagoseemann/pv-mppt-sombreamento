@@ -1,7 +1,8 @@
 % Testes de regressao do modelo de sombreamento parcial.
 % Os numeros esperados sao "fotografias" (snapshots) medidas em 27/10/2026
-% com parametros_painel('generico'); NAO sao valores de referencia da
-% literatura. Servem para detectar mudancas acidentais no codigo.
+% com parametros_painel('generico') e re-medidas em 03/11/2026 apos adotar
+% Rp(G) de De Soto (2006); NAO sao valores de referencia da literatura.
+% Servem para detectar mudancas acidentais no codigo.
 function tests = test_sombreamento
 tests = functiontests(localfunctions);
 end
@@ -19,7 +20,7 @@ c3 = curva_pv([1000  600  300], p.Tn, p);
 verifyEqual(tc, c1.Pmp, 138.2, 'RelTol', 0.01);
 verifyEqual(tc, c2.Pmp,  89.2, 'RelTol', 0.01);
 verifyEqual(tc, c2.Vmp,  11.58, 'AbsTol', 0.2);
-verifyEqual(tc, c3.Pmp,  57.8, 'RelTol', 0.01);
+verifyEqual(tc, c3.Pmp,  58.0, 'RelTol', 0.01);
 end
 
 function test_numero_de_picos(tc)

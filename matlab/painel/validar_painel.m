@@ -31,7 +31,8 @@ for m = 1:2
     v.gamaP_modelo(m) = (cq.Pmp - cf.Pmp) / 20 / c.Pmp;
 
     % Potencia maxima em varias irradiancias: e onde 1d e 2d diferem, pois
-    % em baixa corrente a recombinacao (2o diodo) pesa mais
+    % em baixa corrente a forma da curva do diodo (a1 agrupado no 1d, ou
+    % difusao + recombinacao no 2d) muda a tensao do MPP
     for k = 1:numel(Gs)
         v.Pmax_G(m, k) = curva_pv(Gs(k) * uniforme, p.Tn, p, 1000).Pmp;
     end

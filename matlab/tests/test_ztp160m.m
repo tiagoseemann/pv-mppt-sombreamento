@@ -29,3 +29,13 @@ function test_identificabilidade_2o_diodo(tc)
 tab = identificabilidade_2d('ztp160m');
 verifyLessThan(tc, tab.residuo, 1e-6);
 end
+
+function test_eficiencia_em_baixa_irradiancia(tc)
+% Confere que a perda em 200 W/m^2 deixou de ser os 26 % do Rp constante.
+% A literatura da 3-5 % de perda para Si monocristalino em 200 W/m^2; aqui
+% so se afirma que o resultado nao e mais o valor sem significado fisico.
+v = tc.TestData.v;
+eta200_rel = (v.Pmax_G(2, end) / v.G(end)) / (v.Pmax_G(2, 1) / v.G(1));
+verifyGreaterThan(tc, eta200_rel, 0.90);
+verifyLessThan(tc, eta200_rel, 1.0);
+end
