@@ -7,6 +7,7 @@ function v = validar_painel(nome)
 %   Pmax (gamaP) NAO entra no ajuste e e a validacao independente.
 %
 %   v.erroPmax_STC, v.erroVoc_STC : erro relativo em STC   [1d 2d]
+%   v.erroPmp_VmpImp              : erro de Pmp contra Vmp*Imp do datasheet [1d 2d]
 %   v.gamaP_modelo                : dPmax/dT / Pmax  [1/K]  [1d 2d]
 %   v.G                           : irradiancias avaliadas [W/m^2]
 %   v.Pmax_G                      : Pmax em cada G [W] (linhas: 1d, 2d)
@@ -22,6 +23,10 @@ for m = 1:2
     % I >= 0, ou seja, o Voc da curva (resolucao de ~12 mV com 2000 pontos).
     c = curva_pv(1000 * uniforme, p.Tn, p, 2000);
     v.erroPmax_STC(m) = (c.Pmp - ds.Pmax) / ds.Pmax;
+    % O datasheet e inconsistente: Vmp*Imp = 19,57*8,20 = 160,47 W, mas
+    % Pmax = 160 W (arredondado). O ajuste impoe (Vmp, Imp), entao o erro
+    % de ~0,3 % contra Pmax e do proprio datasheet; contra Vmp*Imp, ~0.
+    v.erroPmp_VmpImp(m) = (c.Pmp - ds.Vmp * ds.Imp) / (ds.Vmp * ds.Imp);
     v.erroVoc_STC(m) = (c.V(end) - ds.Voc) / ds.Voc;
 
     % Coeficiente termico de Pmax: derivada central entre 15 C e 35 C,

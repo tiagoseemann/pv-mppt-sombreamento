@@ -13,7 +13,8 @@ Vd = V + c.Rs_s * I;
 e1 = exp(Vd / (p.a1 * c.Vt_s));
 e2 = exp(Vd / (p.a2 * c.Vt_s));
 
-% G e escalar aqui, entao c.Rp_s tambem e (Rp(G) de De Soto, ver celula_params).
+% G e escalar aqui, entao c.Rp_s tambem e (Rp(G) de De Soto, ver celula_params);
+% ./ por coerencia com residuo_painel.
 % KCL: fotocorrente - diodo 1 - diodo 2 - corrente em Rp - corrente de saida = 0
 F = c.Ipv - c.I01 * (e1 - 1) - c.I02 * (e2 - 1) - Vd ./ c.Rp_s - I;
 

@@ -17,7 +17,7 @@ function [p, info] = extrair_parametros(ds, modelo, razao)
 %   Por que fixar I02/I01 no '2d': o datasheet nao identifica I02 separadamente.
 %   Fixando I02 em qualquer valor de 1e-12 a 1e-5 A, as condicoes de STC
 %   (Isc, Voc, MPP, dP/dV) fecham exatamente; logo e preciso uma hipotese
-%   extra publicada. A analise de identificabilidade fica para a Tarefa 3.
+%   extra publicada. A analise de identificabilidade esta em identificabilidade_2d.m.
 %
 %   Por que Eg e incognita: Eg e um gap EFETIVO (ver celula_params); a
 %   condicao de Kv o calibra. No '1d' ele e so um parametro de calibracao,

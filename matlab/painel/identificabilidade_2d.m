@@ -8,6 +8,8 @@ function tab = identificabilidade_2d(nome, razoes)
 %   fora do STC mudam, o parametro nao e identificavel so com o datasheet.
 %   A faixa de eta200_rel na tabela e a incerteza que sobra na previsao em
 %   baixa irradiancia.
+%   Usa curvas de 1000 pontos (validar_painel usa 2000 no STC): na razao 1
+%   o gamaP daqui e o de validar_painel concordam (-0,3628 %/K).
 if nargin < 2, razoes = [0.01 0.1 1 10 100]; end
 ds = datasheet_painel(nome);
 n = numel(razoes);
