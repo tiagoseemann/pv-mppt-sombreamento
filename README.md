@@ -24,6 +24,10 @@ um MPPT global (PSO) recupera, considerando o aquecimento do painel e as perdas 
 ## Estrutura
 
 ```
+referencias/
+  README.md          # índice comentado das referências
+  referencias.bib    # BibTeX (mesmas chaves da proposta)
+  pdfs/              # PDFs dos artigos (não versionados)
 proposta/
   proposta.tex       # documento da proposta (LaTeX)
   proposta.pdf       # versão compilada

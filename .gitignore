@@ -1,5 +1,6 @@
-# Trabalho de outros autores (semestre anterior) - nao versionar
-Trabalho_Final_DAS5109_Energia_Fotovoltaica.pdf
+# PDFs de referencias (direitos autorais, inclusive o trabalho do semestre anterior) - nao versionar
+referencias/pdfs/*
+!referencias/pdfs/.gitkeep
 
 # LaTeX
 *.aux

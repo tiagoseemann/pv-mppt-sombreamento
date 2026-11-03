@@ -1,0 +1,28 @@
+% Perfis dinamicos de MPPT da EN 50530:2010+A1:2013, Anexo B (B.2, B.3, B.4).
+% Fonte: relatorio de ensaio TUV Rheinland No. CN21VE2D 001 (TRF EN 50530_A), tabela 4.4
+%        "Dynamic MPPT Efficiency", p. 15-16. O texto da norma (CENELEC) e pago e nao
+%        foi consultado diretamente; os valores conferem aritmeticamente com as duracoes
+%        impressas: duracao = repeticoes * (2*rampa + 2*patamar) + espera.
+% Cada linha: espera_s em G_baixo, depois 'repeticoes' trapezios
+%             (rampa ate G_alto, patamar_s, rampa ate G_baixo, patamar_s).
+% Observacao B.4: o relatorio imprime rampa de 980 s, mas (100-10)/0,1 = 900 s;
+%             aqui a rampa e calculada pela inclinacao (900 s).
+sequencia,G_baixo,G_alto,inclinacao_Wm2s,patamar_s,repeticoes,espera_s
+B2,100,500,0.5,10,2,300
+B2,100,500,1,10,2,300
+B2,100,500,2,10,3,300
+B2,100,500,3,10,4,300
+B2,100,500,5,10,6,300
+B2,100,500,7,10,8,300
+B2,100,500,10,10,10,300
+B2,100,500,14,10,10,300
+B2,100,500,20,10,10,300
+B2,100,500,30,10,10,300
+B2,100,500,50,10,10,300
+B3,300,1000,10,10,10,300
+B3,300,1000,14,10,10,300
+B3,300,1000,20,10,10,300
+B3,300,1000,30,10,10,300
+B3,300,1000,50,10,10,300
+B3,300,1000,100,10,10,300
+B4,10,100,0.1,30,1,300
