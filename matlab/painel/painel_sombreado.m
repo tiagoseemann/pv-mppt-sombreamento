@@ -36,4 +36,10 @@ end
 I = z(1);
 sol.z = z;  sol.Vj = Vj;  sol.Ic = Ic;  sol.Ibp = Ibp;
 sol.iter = it;  sol.res = norm(R, inf);
+
+% avisa se o Newton nao chegou na tolerancia
+if sol.res > tol
+    warning('painel_sombreado:naoConvergiu', ...
+        'Newton nao convergiu em Vpv = %.3f V (residuo = %.2e)', Vpv, sol.res);
+end
 end

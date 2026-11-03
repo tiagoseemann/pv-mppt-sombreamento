@@ -1,8 +1,8 @@
 function p = parametros_painel(nome)
 %PARAMETROS_PAINEL Parametros do modulo FV com submodulos e diodos de bypass.
 %   p = parametros_painel('generico')  painel generico de 36 celulas (~140 W)
-%   ATENCAO: valores PROVISORIOS (painel generico de 36 celulas, ~140 W).
-%   Substituir pelos parametros extraidos do datasheet do ZTP-160M (etapa 1).
+%   Caso 'generico': valores provisorios, mantidos como referencia de
+%   regressao; paineis reais entram na Tarefa 2.
 
 if nargin < 1, nome = 'generico'; end
 if ~strcmpi(nome, 'generico')
@@ -28,11 +28,11 @@ p.Ncel = p.Ns / p.Nsub;     % celulas por submodulo
 p.Ipv_n = 8.21;             % fotocorrente nominal [A]
 p.I01_n = 3.5e-10;          % saturacao, difusao [A]
 p.I02_n = 1.0e-6;           % saturacao, recombinacao [A]
-p.a1    = 1.0;
-p.a2    = 2.0;
-p.Rs    = 0.005;            % [ohm]
-p.Rp    = 10;               % [ohm]
-p.Ki    = 0.0005 * 8.2;     % coef. termico da corrente [A/K]
+p.a1    = 1.0;              % fator de idealidade do diodo de difusao
+p.a2    = 2.0;              % fator de idealidade do diodo de recombinacao
+p.Rs    = 0.005;            % resistencia serie POR CELULA [ohm]
+p.Rp    = 10;               % resistencia paralela POR CELULA [ohm]
+p.Ki    = 0.0005 * 8.2;     % coef. termico da corrente [A/K] (+0,05 %/K x Isc)
 
 % Diodo de bypass (Schottky)
 p.I0bp = 1.4e-6;            % [A]  (V_F ~ 0,4 V a 8 A)
