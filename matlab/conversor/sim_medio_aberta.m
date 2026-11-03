@@ -1,10 +1,12 @@
-function r = sim_medio_aberta(t_fim, dfun, G, T, p, pc, x0)
+function r = sim_medio_aberta(t_fim, dfun, G, T, p, pc, x0, max_passo)
 %SIM_MEDIO_ABERTA Modelo medio + painel como DAE (ode15s, matriz de massa).
 %   r = sim_medio_aberta(t_fim, dfun, G, T, p, pc, x0)
+%   r = sim_medio_aberta(t_fim, dfun, G, T, p, pc, x0, max_passo)
 %
 %   Malha aberta: a razao ciclica e imposta por d = dfun(t).
 %   G pode ser um vetor fixo (1 x Nsub) ou uma funcao de t.
 %   x0 = [v_pv; i_L]; o estado algebrico do painel e calculado aqui.
+%   max_passo: passo maximo do ode15s [s] (opcional, padrao pc.Ts).
 %
 %   Estado completo: x = [v_pv; i_L; I; Vd_1..Vd_N]
 %       dv_pv/dt = (I - d*iL)/C                     (diferencial)
@@ -18,6 +20,9 @@ function r = sim_medio_aberta(t_fim, dfun, G, T, p, pc, x0)
 %
 %   Saida: r.t, r.v, r.iL, r.I (corrente do painel).
 
+if nargin < 8 || isempty(max_passo)
+    max_passo = pc.Ts;
+end
 N = p.Nsub;
 if ~isa(G, 'function_handle')
     Gfixo = G;
@@ -31,9 +36,10 @@ x0 = [x0(:); s0.z];
 M = blkdiag(eye(2), zeros(N + 1));
 f = @(t, x) rhs_dae(t, x, dfun, G, T, p, pc);
 jac = @(t, x) jacobiano_dae(t, x, dfun, G, T, p, pc);
-% MaxStep = Ts: o degrau de d nao pode ser "pulado" pelo integrador
+% MaxStep limitado: um passo longo atravessaria a descontinuidade de d (degrau)
+% sem perceber; com passos curtos o integrador a encontra e reduz o passo ali
 opts = odeset('Mass', M, 'MassSingular', 'yes', 'RelTol', 1e-6, 'AbsTol', 1e-8, ...
-    'MaxStep', pc.Ts, 'Jacobian', jac);
+    'MaxStep', max_passo, 'Jacobian', jac);
 [r.t, x] = ode15s(f, [0 t_fim], x0, opts);
 r.v = x(:, 1);  r.iL = x(:, 2);  r.I = x(:, 3);
 end

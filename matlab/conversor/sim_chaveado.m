@@ -8,7 +8,9 @@ function r = sim_chaveado(t_fim, dfun, G, T, p, pc, x0)
 %   p, pc : parametros do painel e do conversor
 %   x0    : estado MEDIO inicial [v_pv; i_L] (o mesmo usado no modelo medio)
 %
-%   Saida: r.t, r.v (v_pv), r.iL e r.q (estado da chave: true = ligada).
+%   Saida: r.t, r.v (v_pv), r.iL e r.q. r.v(k) e r.iL(k) sao o estado no
+%   instante r.t(k). r.q(k) e a fracao do passo k com a chave ligada
+%   (1 = ligada o passo todo, 0 = desligada, entre 0 e 1 no passo da comutacao).
 %
 %   Diferente do modelo medio, aqui as duas topologias se alternam de fato:
 %     chave ligada:    L di/dt = v_pv - iL*(rL + Ron),        C dv/dt = i_pv - iL
@@ -17,12 +19,13 @@ function r = sim_chaveado(t_fim, dfun, G, T, p, pc, x0)
 %   a chave desligada, i_L fica em zero (conducao descontinua, DCM).
 %
 %   Passo fixo de Ts/200: a cada passo o painel e resolvido por Newton com
-%   warm start (a solucao do passo anterior), por isso a simulacao e lenta.
+%   warm start (a solucao do passo anterior); leva cerca de 1-2 s para 6 ms.
 
-dt = pc.Ts / 200;
+passos_por_periodo = 200;
+dt = pc.Ts / passos_por_periodo;
 n = round(t_fim / dt);
 r.t = (0:n - 1).' * dt;
-r.v = zeros(n, 1);  r.iL = zeros(n, 1);  r.q = false(n, 1);
+r.v = zeros(n, 1);  r.iL = zeros(n, 1);  r.q = zeros(n, 1);
 
 % Condicao inicial: x0 e a media do periodo, mas o chaveado comeca no instante
 % em que a chave liga. Nesse instante i_L esta no VALE (vai subir durante d*Ts)
@@ -38,31 +41,50 @@ delta_v = (x0(2) - ipv0) * d0 * pc.Ts / pc.C;
 v = x0(1) + delta_v / 2;
 iL = max(x0(2) - delta_i / 2, 0);
 z = [];                                  % sem chute inicial no primeiro passo
+d_per = d0;
+
 for k = 1:n
     t = r.t(k);
 
-    % PWM: chave ligada na fracao d do inicio de cada periodo
-    q = mod(t, pc.Ts) < dfun(t) * pc.Ts;
+    % Guarda o estado ANTES de avancar: r.v(k), r.iL(k) valem em r.t(k)
+    r.v(k) = v;  r.iL(k) = iL;
+
+    % Indice do passo dentro do periodo (inteiro: evita erro de mod em ponto flutuante)
+    j = mod(k - 1, passos_por_periodo);
+
+    % PWM real: a razao ciclica e amostrada no inicio de cada periodo e fica
+    % fixa ate o proximo (uma mudanca de d no meio do periodo so vale no seguinte)
+    if j == 0
+        d_per = dfun(t);
+    end
+
+    % Fracao do passo j com a chave ligada. A chave liga em t = 0 do periodo e
+    % desliga em d*Ts, ou seja, no passo d*200. Os passos antes disso ficam
+    % ligados inteiros (f = 1), os depois desligados (f = 0) e o passo onde
+    % ocorre a comutacao fica ligado so em parte (0 < f < 1). Sem isso a chave
+    % ficaria ligada ceil(200*d) passos inteiros, e o d efetivo erraria em ate 1/200.
+    f = min(max(d_per * passos_por_periodo - j, 0), 1);
 
     % Corrente do painel na tensao atual do capacitor (warm start em z)
     [ipv, s] = painel_sombreado(v, G, T, p, z);
     z = s.z;
 
-    if q
-        % Chave ligada: indutor carrega a partir do painel/capacitor
-        di = (v - iL * (pc.rL + pc.Ron)) / pc.L;
-        dv = (ipv - iL) / pc.C;
-    else
-        % Chave desligada: indutor descarrega na bateria pelo diodo;
-        % o capacitor so recebe a corrente do painel
-        di = (-(pc.Vbat + pc.VF) - iL * (pc.rL + pc.RD)) / pc.L;
-        dv = ipv / pc.C;
-    end
+    % Chave ligada: indutor carrega a partir do painel/capacitor
+    di_on = (v - iL * (pc.rL + pc.Ron)) / pc.L;
+    dv_on = (ipv - iL) / pc.C;
+    % Chave desligada: indutor descarrega na bateria pelo diodo;
+    % o capacitor so recebe a corrente do painel
+    di_off = (-(pc.Vbat + pc.VF) - iL * (pc.rL + pc.RD)) / pc.L;
+    dv_off = ipv / pc.C;
+
+    % Derivada media no passo, ponderada pelo tempo em cada topologia
+    di = f * di_on + (1 - f) * di_off;
+    dv = f * dv_on + (1 - f) * dv_off;
 
     % Euler explicito; o diodo bloqueia corrente negativa (i_L >= 0)
     v = v + dv * dt;
     iL = max(iL + di * dt, 0);
 
-    r.v(k) = v;  r.iL(k) = iL;  r.q(k) = q;
+    r.q(k) = f;
 end
 end

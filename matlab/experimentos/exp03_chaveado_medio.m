@@ -63,13 +63,20 @@ for c = 1:2
     fprintf('ripple iL: simulado %.3f A, analitico %.3f A\n', ripple_sim, ripple_ana);
     fprintf('tempo: chaveado %.1f s, medio %.2f s\n', t_chav, t_med);
 
+    % So para o grafico: 1 a cada 4 amostras (50 pontos por periodo ainda
+    % mostram o ripple) deixa o PDF bem menor
+    kp = 1:4:numel(rs.t);
     subplot(2, 2, 2 * c - 1);
-    plot(rs.t * 1e3, rs.v, rm.t * 1e3, rm.v, '--', 'LineWidth', 1.2); grid on;
+    plot(rs.t(kp) * 1e3, rs.v(kp), 'LineWidth', 1.0); hold on;
+    plot(rs.t(kp) * 1e3, vbar(kp), 'k', 'LineWidth', 0.8);   % o que e comparado
+    plot(rm.t * 1e3, rm.v, '--', 'LineWidth', 1.4); hold off; grid on;
     ylabel('v_{pv} [V]'); xlabel('t [ms]'); title(casos{c, 2});
-    % Posicao fixa: 'best' com 24 mil pontos deixa o exportgraphics travado
-    legend('chaveado', 'medio', 'Location', 'southwest');
+    % Posicao fixa: com 'best' o exportgraphics trava (minutos) nessas curvas densas
+    legend('chaveado', 'media de 1 periodo', 'medio', 'Location', 'southwest');
     subplot(2, 2, 2 * c);
-    plot(rs.t * 1e3, rs.iL, rm.t * 1e3, rm.iL, '--', 'LineWidth', 1.2); grid on;
+    plot(rs.t(kp) * 1e3, rs.iL(kp), 'LineWidth', 1.0); hold on;
+    plot(rs.t(kp) * 1e3, ibar(kp), 'k', 'LineWidth', 0.8);
+    plot(rm.t * 1e3, rm.iL, '--', 'LineWidth', 1.4); hold off; grid on;
     ylabel('i_L [A]'); xlabel('t [ms]'); title(casos{c, 2});
 end
 exportgraphics(gcf, fullfile(pasta_figs, 'e3_chaveado_medio.pdf'));
