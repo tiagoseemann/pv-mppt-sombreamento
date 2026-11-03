@@ -199,7 +199,6 @@ Run: comando padrão. Expected: 5 testes `Passed`.
 
 Acrescentar ao `.gitignore`:
 ```
-data/params_*.mat
 ```
 
 ```bash
@@ -464,7 +463,7 @@ switch lower(nome)
         ds.Nsub = 3;                      % HIPOTESE: 1 bypass por coluna de 11
         ds.A = 0.82;                      % area [m^2]
         ds.NMOT = 45;                     % [C]
-        ds.a_1d = 1.3;
+        ds.a_1d = 1.1;                    % FF alto (0,78): a = 1,3 nao fecha (revisao Tarefa 2)
     otherwise
         error('datasheet_painel:nome', 'Painel desconhecido: %s', nome);
 end
@@ -543,22 +542,9 @@ end
 
 Expected: 4 `Passed`. Se `test_parametros_fisicos` falhar por resíduo alto no `2d`, imprimir `info.r` para ver qual condição não fecha; a correção provável é ajustar `x0` de `log10 I02` (testar −7 e −5) — registrar no relatório.
 
-- [ ] **Passo 8: Ligar `parametros_painel` aos painéis reais (com cache)**
+- [ ] **Passo 8: Ligar `parametros_painel` aos painéis reais (sem cache)**
 
-Substituir o `error` do Passo 4 da Tarefa 0 por:
-
-```matlab
-if ~strcmpi(nome, 'generico')
-    arq = fullfile(raiz_projeto(), 'data', ['params_' lower(nome) '.mat']);
-    if isfile(arq)
-        s = load(arq);  p = s.p;
-    else
-        p = extrair_parametros(datasheet_painel(nome), '2d');
-        save(arq, 'p');
-    end
-    return
-end
-```
+Para painéis reais, `p = extrair_parametros(datasheet_painel(nome), '2d');`. A extração leva menos de 0,5 s, então não há cache em disco: um cache esconderia mudanças no código (decisão da revisão da Tarefa 2).
 
 - [ ] **Passo 9: Rodar todos os testes e commitar**
 
