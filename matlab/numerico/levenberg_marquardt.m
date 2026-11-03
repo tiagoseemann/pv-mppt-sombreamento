@@ -26,6 +26,7 @@ custo = r.' * r;
 % da solucao); mu grande -> passo curto na direcao do gradiente (seguro).
 mu = 1e-3;
 
+it = 0;                               % definido mesmo se maxIt = 0
 for it = 1:maxIt
     J = jacobiano_numerico(fun, x, r, lb, ub);
     A = J.' * J;                      % aproximacao de Gauss-Newton da Hessiana / 2
@@ -58,7 +59,9 @@ for it = 1:maxIt
     end
 
     % Criterios de parada: nenhum passo melhora, custo ja e pequeno, ou o
-    % passo ficou desprezivel frente ao tamanho de x
+    % passo ficou desprezivel frente ao tamanho de x.
+    % Com limites ativos (x parado em lb ou ub) a parada costuma ser a de
+    % "nenhum passo melhora": a projecao anula o passo naquela direcao.
     if ~aceitou
         break
     end
@@ -72,7 +75,7 @@ end
 
 function J = jacobiano_numerico(fun, x, r, lb, ub)
 % Jacobiano dr/dx por diferencas centrais, sem sair dos limites
-% (no limite a diferenca vira unilateral).
+% (no limite a diferenca vira unilateral). r so e usado para o tamanho de J.
 J = zeros(numel(r), numel(x));
 for j = 1:numel(x)
     h = 1e-6 * max(1, abs(x(j)));

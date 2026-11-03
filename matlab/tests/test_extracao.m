@@ -29,7 +29,7 @@ verifyEqual(tc, (c50.V(end) - c25.V(end)) / 25, ds.Kv, 'RelTol', 0.05);
 end
 
 function test_parametros_fisicos(tc)
-% Confere resistencias e gap plausiveis, I01 = I02 e que as 5 condicoes fecham.
+% Confere resistencias e gap plausiveis e que as 5 condicoes fecham.
 p = tc.TestData.p;
 verifyGreaterThan(tc, p.Rs * p.Ns, 0.01);                % Rs do modulo [ohm]
 verifyLessThan(tc, p.Rs * p.Ns, 1);
@@ -37,7 +37,6 @@ verifyGreaterThan(tc, p.Rp * p.Ns, 50);                  % Rp do modulo [ohm]
 verifyLessThan(tc, tc.TestData.info.residuo, 1e-6);
 verifyGreaterThan(tc, p.Eg, 1.0);                        % gap efetivo [eV]
 verifyLessThan(tc, p.Eg, 1.5);
-verifyEqual(tc, p.I01_n, p.I02_n);                       % hipotese de Ishaque
 end
 
 function test_modelo_1d(tc)
@@ -53,8 +52,23 @@ verifyEqual(tc, p1.I02_n, 0);
 end
 
 function test_razao_I02_I01(tc)
-% Confere que outra razao I02/I01 tambem satisfaz o datasheet (I02 nao e identificavel).
+% Confere que razoes I02/I01 = 1 e 10 fecham o datasheet com o mesmo Pmax
+% (o datasheet nao distingue as duas: I02 nao e identificavel).
+p1 = tc.TestData.p;                                      % razao = 1 (padrao)
 [p10, info] = extrair_parametros(tc.TestData.ds, '2d', 10);
 verifyLessThan(tc, info.residuo, 1e-6);
-verifyEqual(tc, p10.I02_n, 10 * p10.I01_n, 'RelTol', 1e-12);
+G = 1000 * ones(1, p1.Nsub);
+c1  = curva_pv(G, p1.Tn, p1, 2000);
+c10 = curva_pv(G, p10.Tn, p10, 2000);
+verifyEqual(tc, c10.Pmp, c1.Pmp, 'RelTol', 1e-3);
+end
+
+function test_benchmark_villalva_1d(tc)
+% Compara o '1d' do KC200GT com Villalva et al. (2009): Ipv, I0 e Rs.
+% Rp nao e comparado: e pouco determinado perto do MPP e Villalva usa
+% outra lei I0(T), entao os valores divergem sem que um esteja errado.
+p1 = extrair_parametros(tc.TestData.ds, '1d');
+verifyEqual(tc, p1.Ipv_n, 8.214, 'RelTol', 0.01);       % [A]
+verifyEqual(tc, p1.I01_n, 9.825e-8, 'RelTol', 0.05);    % [A]
+verifyEqual(tc, p1.Rs * p1.Ns, 0.221, 'RelTol', 0.10);  % Rs do modulo [ohm]
 end

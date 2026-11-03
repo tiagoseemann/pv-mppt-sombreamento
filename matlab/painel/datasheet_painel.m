@@ -33,7 +33,11 @@ switch lower(nome)
         ds.Nsub = 3;                      % HIPOTESE: 1 bypass por coluna de 11
         ds.A = 0.82;                      % area [m^2]
         ds.NMOT = 45;                     % [C]
-        ds.a_1d = 1.3;
+        % Modulo monocristalino com fator de forma alto (0,78): a = 1,3
+        % (escolha de Villalva para o KC200GT, policristalino) nao o alcanca
+        % sem Rs <= 0. a = 1,1 e o maior valor, em passos de 0,1, que ajusta.
+        % A literatura trata o a do modelo de 1 diodo como escolha em [1; 1,5].
+        ds.a_1d = 1.1;
     otherwise
         error('datasheet_painel:nome', 'Painel desconhecido: %s', nome);
 end

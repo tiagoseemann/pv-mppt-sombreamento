@@ -5,19 +5,12 @@ function p = parametros_painel(nome)
 %   Caso 'generico': valores provisorios, mantidos como referencia de
 %   regressao dos testes de sombreamento.
 %   Paineis reais: parametros do modelo de 2 diodos extraidos do datasheet
-%   (extrair_parametros). A extracao e guardada em data/params_<nome>.mat
-%   para nao ser refeita a cada chamada; apague esse arquivo se mudar a
-%   extracao ou o datasheet.
+%   (extrair_parametros) a cada chamada. A extracao leva < 0,5 s, entao nao
+%   ha cache em disco: um cache esconderia mudancas no codigo.
 
 if nargin < 1, nome = 'generico'; end
 if ~strcmpi(nome, 'generico')
-    arq = fullfile(raiz_projeto(), 'data', ['params_' lower(nome) '.mat']);
-    if isfile(arq)
-        s = load(arq);  p = s.p;
-    else
-        p = extrair_parametros(datasheet_painel(nome), '2d');
-        save(arq, 'p');
-    end
+    p = extrair_parametros(datasheet_painel(nome), '2d');
     return
 end
 p.nome = 'generico';
