@@ -28,7 +28,14 @@ else
     e.Pant = P;
 end
 
-% Da o passo e limita a faixa permitida
-e.Vref = min(max(e.Vref + e.dir * cfg.delta, cfg.Vmin), cfg.Vmax);
+% Da o passo e limita a faixa permitida. Ao bater num limite, a direcao
+% passa a apontar para dentro da faixa: evita uma trava teorica no limite
+% (referencia saturada e potencia constante, sem nunca inverter).
+e.Vref = e.Vref + e.dir * cfg.delta;
+if e.Vref <= cfg.Vmin
+    e.Vref = cfg.Vmin;  e.dir = +1;
+elseif e.Vref >= cfg.Vmax
+    e.Vref = cfg.Vmax;  e.dir = -1;
+end
 Vref = e.Vref;
 end

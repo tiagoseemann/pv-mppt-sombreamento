@@ -24,7 +24,9 @@ nPassos = 200;
 linhas = {};
 for g = 1:numel(padroes)
     G = 1000 * padroes{g}(1:p.Nsub);
-    Pg = curva_pv(G, p.Tn, p).Pmp;          % pico global (referencia de eficiencia)
+    % Pico global (referencia de eficiencia) numa grade fina de 3000 pontos:
+    % a grade padrao (600) subestima Pmp e daria eta um pouco acima de 1
+    Pg = curva_pv(G, p.Tn, p, 3000).Pmp;
     for a = 1:size(algs, 1)
         if strcmp(algs{a, 2}, 'PSO')
             nSeeds = 10;

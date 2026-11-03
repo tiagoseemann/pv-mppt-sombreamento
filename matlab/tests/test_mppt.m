@@ -54,6 +54,39 @@ function test_pso_reinicia_quando_sombra_muda(tc)
 % Quando a sombra muda (138 -> 58 W), o PSO deve reiniciar a busca e achar o novo global.
 p = tc.TestData.p;
 Gf = @(k) [1000 1000 1000] .* (k <= 80) + [1000 600 300] .* (k > 80);
-r = rastrear_estatico(@mppt_pso, tc.TestData.cfg, Gf, p.Tn, p, 200);
+[r, e] = rastrear_estatico(@mppt_pso, tc.TestData.cfg, Gf, p.Tn, p, 200);
 verifyGreaterThan(tc, r.P(end), 0.98 * curva_pv([1000 600 300], p.Tn, p).Pmp);
+verifyGreaterThanOrEqual(tc, e.nReinicios, 1);
+end
+
+function test_inc_ramo_manter(tc)
+% Com a referencia mantida no MPP, uma queda de irradiancia (1000 -> 800) deve mover Vref de sign(dI)*delta.
+p = tc.TestData.p;  cfg = tc.TestData.cfg;  G = [1000 1000 1000];
+[~, e] = rastrear_estatico(@mppt_inc, cfg, @(k) G, p.Tn, p, 150);
+verifyEqual(tc, e.dVref, 0);             % esta parado no MPP
+V = e.Vref;                              % tensao mantida
+I = painel_sombreado(V, 0.8 * G, p.Tn, p);
+[Vnovo, ~] = mppt_inc(V, I, e, cfg);
+verifyEqual(tc, Vnovo, V + sign(I - e.Iant) * cfg.delta, 'AbsTol', 1e-12);
+verifyLessThan(tc, Vnovo, V);            % menos luz: o MPP vai para a esquerda
+end
+
+function test_limites_respeitados(tc)
+% Os tres algoritmos mantem Vref em [Vmin, Vmax] partindo perto de cada limite.
+p = tc.TestData.p;  G = [1000 1000 400];
+algs = {@mppt_po, @mppt_inc, @mppt_pso};
+for a = 1:numel(algs)
+    for partida = {'baixo', 'alto'}
+        cfg = tc.TestData.cfg;
+        if strcmp(partida{1}, 'baixo')
+            cfg.Vref0 = cfg.Vmin + 0.5 * cfg.delta;
+        else
+            cfg.Vref0 = cfg.Vmax - 0.5 * cfg.delta;
+        end
+        r = rastrear_estatico(algs{a}, cfg, @(k) G, p.Tn, p, 100);
+        msg = sprintf('%s, partida %s', func2str(algs{a}), partida{1});
+        verifyGreaterThanOrEqual(tc, min(r.V), cfg.Vmin - 1e-12, msg);
+        verifyLessThanOrEqual(tc, max(r.V), cfg.Vmax + 1e-12, msg);
+    end
+end
 end

@@ -1,6 +1,6 @@
-function r = rastrear_estatico(alg, cfg, Gfun, T, p, nPassos)
+function [r, e] = rastrear_estatico(alg, cfg, Gfun, T, p, nPassos)
 %RASTREAR_ESTATICO MPPT sobre o mapa estatico (tensao assentada a cada passo).
-%   r = rastrear_estatico(alg, cfg, Gfun, T, p, nPassos)
+%   [r, e] = rastrear_estatico(alg, cfg, Gfun, T, p, nPassos)
 %
 %   alg     : handle do algoritmo, ex. @mppt_po
 %   cfg     : struct de config_mppt()
@@ -10,6 +10,7 @@ function r = rastrear_estatico(alg, cfg, Gfun, T, p, nPassos)
 %   nPassos : numero de periodos Ta simulados
 %
 %   r.V, r.P : tensao aplicada e potencia medida em cada passo
+%   e        : estado final do algoritmo (para inspecao nos testes)
 %
 %   Hipotese: a malha de tensao assenta dentro de um periodo Ta (D13), entao
 %   a tensao do painel e exatamente a referencia pedida no passo anterior

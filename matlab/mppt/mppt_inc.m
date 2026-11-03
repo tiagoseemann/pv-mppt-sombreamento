@@ -14,18 +14,27 @@ function [Vref, e] = mppt_inc(V, I, e, cfg)
 
 if isempty(e)
     % Primeira chamada: da um passo para ter dois pontos e calcular dI/dV
-    e = struct('Vref', cfg.Vref0, 'Vant', V, 'Iant', I);
-    Vref = e.Vref - cfg.delta;
-    e.Vref = Vref;
+    e = struct('Vref', cfg.Vref0 - cfg.delta, 'dVref', -cfg.delta, 'Vant', V, 'Iant', I);
+    e.Vref = min(max(e.Vref, cfg.Vmin), cfg.Vmax);
+    Vref = e.Vref;
     return
 end
 
 dV = V - e.Vant;
 dI = I - e.Iant;
-if abs(dV) < 1e-6
-    % A tensao nao mudou (referencia mantida): se a corrente mudou, foi a
-    % irradiancia que mudou. Mais luz (dI > 0) desloca o MPP para a
-    % direita, entao sobe a tensao; menos luz, desce.
+VrefAnt = e.Vref;
+
+% O ramo e escolhido pelo passo COMANDADO (e.dVref), nao pelo dV medido:
+% em simulacao dinamica (ou com ruido), uma referencia mantida ainda gera
+% dV de ~1e-5 a 1e-3 V; dividir dI por um dV tao pequeno da um s enorme e
+% de sinal aleatorio, e o InC passaria a oscilar como o P&O.
+if V <= 0
+    % Capacitor de entrada descarregado na partida: I/V nao existe; sobe a tensao
+    e.Vref = e.Vref + cfg.delta;
+elseif e.dVref == 0 || dV == 0
+    % Referencia mantida (ou a tensao ainda nao respondeu ao passo): se a
+    % corrente mudou, foi a irradiancia que mudou. Mais luz (dI > 0)
+    % desloca o MPP para a direita, entao sobe a tensao; menos luz, desce.
     if abs(dI) > cfg.epsI
         e.Vref = e.Vref + sign(dI) * cfg.delta;
     end
@@ -37,6 +46,7 @@ else
 end
 
 e.Vref = min(max(e.Vref, cfg.Vmin), cfg.Vmax);
+e.dVref = e.Vref - VrefAnt;              % passo efetivamente comandado
 e.Vant = V;  e.Iant = I;
 Vref = e.Vref;
 end
