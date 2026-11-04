@@ -33,6 +33,7 @@
 | D13 | Robustez do PI e período do MPPT (revisão da Tarefa 8) | Margens verificadas em todos os pontos × cantos de tolerância de L e C (±20 %) + ponto quente (60 °C); **T_a = 1,5 × t_s no pior caso** (Femia); teto de t_s = 50 ms só como sanidade (o "20 ms" anterior era arbitrário) | Com L +20 % a MG caía para 4,6 dB; o pior t_s (pico sombreado de baixa tensão, ganho da planta ≈ 0,6× o nominal) é ~20–23 ms, então T_a ≈ 31–35 ms. Gain scheduling resolveria, mas fica fora do escopo |
 | D14 | Parâmetros do MPPT (decidido na Tarefa 9) | InC: **ε = ½·\|ds/dV\|·δ no MPP** (s = dI/dV + I/V, da curva STC); PSO: **x₀ = k·V_mp/N_sub (k = 1…N_sub) + 0,9·V_oc**, N = N_sub + 1 | ε = 0,002 S nunca era atingido (um passo muda s em ~0,09 S), e o InC oscilava como o P&O. Com partículas espalhadas linearmente, o PSO caía no pico local em ~1/3 das sementes no padrão [1 0,6 0,3]; os picos ficam perto de múltiplos de V_mp/N_sub (Patel e Agarwal 2008) |
 | D15 | Formulação da simulação dinâmica (Tarefa 10) | **EDO reduzida** de 4 estados [v; i_L; ξ; T]: a corrente do painel é resolvida por Newton (`painel_sombreado`) a cada avaliação; jacobiano com regra da cadeia via diferenciação implícita | A DAE com matriz de massa falhou em 9/36 casos (degraus grandes do PSO sob sombra): o `ode15s` reaproveita o jacobiano e a condutância dos diodos varia exponencialmente (10⁻²–10² S). A EDO reduzida: 0/36 falhas, eficiências iguais em 4 dígitos, 2–4× mais lenta (1–2,5 s de CPU por s simulado) |
+| D16 | Validade do quase-estático (Tarefa 11) | Aceito com erro de energia ≤ 0,4 % (P&O, InC) e **−0,9 a −1,1 % para o PSO buscando continuamente** (conservador contra o PSO: os transitórios do PI passam por tensões de maior potência entre partículas). Rodadas longas usam **dt_oráculo = 1 s** | Com dt = T_a o oráculo custa ~2500 s de CPU por hora simulada; com 1 s, ~65 s/h (EN 50530 × 3 algoritmos ≈ 23 min; dia de 13 h ≈ 14 min por algoritmo). dt = 60 s atrasa nas rampas |
 | D8 | Validação do painel | O datasheet **não tem curvas I-V**: não há o que digitalizar. Validação por (a) pontos de STC, (b) coeficiente térmico de **Pmax (−0,4 %/K), que não entra no ajuste** e serve de teste independente, (c) **NMOT 45 °C** no modelo térmico, (d) KC200GT contra Villalva | Usa só informação publicada; o relatório declara a limitação |
 
 Dados do ZTP-160M (datasheet v4.3, dez/2024): Pmax 160 W, Vmp 19,57 V, Imp 8,20 A, Voc 22,64 V, Isc 9,02 A, 33 células (3x11), área 0,82 m², NMOT 45 °C, coeficientes −0,4 %/K (Pmax), −0,34 %/K (Voc), +0,05 %/K (Isc). O trabalho anterior leu "Pmax 4,8 W / 11 células": era a divisão por célula, não o painel.
@@ -2036,7 +2037,7 @@ p = parametros_painel('ztp160m');  pc = parametros_conversor(p, 12);
 ds = datasheet_painel('ztp160m');  pt = parametros_termicos(ds);
 ctl = projeto_pi(p, pc);  cfg0 = config_mppt(p);
 cen = perfil_en50530(fullfile(raiz_projeto(), 'data', 'en50530_rampas.csv'), p.Nsub);
-op = struct('termico', false, 'perdas', true, 'dt_oraculo', 1);
+op = struct('termico', false, 'perdas', true, 'dt_oraculo', 1);   % D16
 algs = {@mppt_po, 'P&O'; @mppt_inc, 'InC'; @mppt_pso, 'PSO'};
 linhas = {};
 for a = 1:size(algs, 1)
