@@ -1,5 +1,6 @@
-% Testes da simulacao dinamica em malha fechada (DAE: conversor medio + PI +
-% MPPT + painel + termico) e do oraculo de potencia maxima global.
+% Testes da simulacao dinamica em malha fechada (EDO reduzida, decisao D15:
+% conversor medio + PI + MPPT + painel resolvido a cada avaliacao + termico)
+% e do oraculo de potencia maxima global.
 function tests = test_sim_dinamica
 tests = functiontests(localfunctions);
 end
@@ -43,7 +44,7 @@ verifyGreaterThan(tc, r.eta, 0.99);
 verifyLessThanOrEqual(tc, r.eta, 1 + 1e-6);
 end
 
-function test_termico_aquece(tc)
+function test_termico_balanco(tc)
 % O modulo parte do equilibrio termico em aberto (quente) e esfria a taxa Pel/(m*cp).
 d = tc.TestData;  cfg = d.cfg;  cfg.Vref0 = 17;
 cen = cenario_constante([1000 1000 1000], 298.15, 1, 20 * d.ctl.Ta);
@@ -54,6 +55,30 @@ verifyGreaterThan(tc, r.T(end), 298.15 + 10);
 queda = r.T0 - r.T(end);
 queda_esperada = r.E / (d.pt.mcp_area * d.pt.A);
 verifyEqual(tc, queda, queda_esperada, 'RelTol', 0.05);
+end
+
+function test_oraculo_noite(tc)
+% Sem irradiancia nao ha potencia a rastrear: o oraculo devolve zero sem otimizar.
+p = tc.TestData.p;
+[Pg, Vg] = oraculo_pmax([0 0 0], p.Tn, p);
+verifyEqual(tc, [Pg, Vg], [0, 0]);
+end
+
+function test_baixa_irradiancia_diodo_bloqueia(tc)
+% Em 20 W/m^2 que caem a zero (anoitecer), i_L nunca fica negativa (diodo) e E >= 0.
+d = tc.TestData;  G = [20 20 20];
+c = curva_pv(G, d.p.Tn, d.p);
+cfg = d.cfg;  cfg.Vref0 = c.Vmp;
+op = struct('termico', false, 'V0', 0.95 * c.V(end));
+cen = cenario_constante(G, 298.15, 1, 20 * d.ctl.Ta);
+cen.G = @(t) G * (t < 10 * d.ctl.Ta);       % G vai a zero na metade
+r = sim_dinamica(cen, @mppt_fixo, cfg, d.ctl, d.p, d.pc, d.pt, op);
+% i_L >= 0 a menos do erro do integrador (AbsTol = 1e-7 A; medido ~ -1,4e-7):
+% (sem o bloqueio do diodo, i_L chega a -0,31 A neste mesmo caso)
+verifyGreaterThan(tc, r.iLmin, -1e-6);
+verifyGreaterThanOrEqual(tc, r.E, 0);
+verifyTrue(tc, all(isfinite(r.V)) && all(isfinite(r.I)));
+verifyEqual(tc, r.Pg(end), 0);              % noite: oraculo zerado
 end
 
 function test_pso_conta_reinicios(tc)

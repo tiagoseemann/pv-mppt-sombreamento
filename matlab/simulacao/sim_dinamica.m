@@ -14,6 +14,12 @@ function r = sim_dinamica(cen, alg, cfg, ctl, p, pc, pt, op)
 %   op.V0 : tensao inicial do painel [V] (padrao cfg.Vref0). Com V0 diferente
 %           de cfg.Vref0 a simulacao comeca com um degrau de referencia.
 %
+%   PRE-CONDICAO: a simulacao comeca com G > 0, dentro de uma janela de dia.
+%   Em G = 0 o painel nao fornece corrente, o conversor nao tem equilibrio
+%   e a partida e recusada de proposito (erro sim_dinamica:inicioInviavel).
+%   Depois da partida G pode cair (nuvem, anoitecer): o diodo do conversor
+%   bloqueia corrente reversa (ver derivadas) e o oraculo devolve Pg = 0.
+%
 %   ESTADO: x = [v_pv; i_L; xi; T]
 %       v_pv : tensao do capacitor de entrada = tensao do painel [V]
 %       i_L  : corrente media no indutor [A]
@@ -22,25 +28,19 @@ function r = sim_dinamica(cen, alg, cfg, ctl, p, pc, pt, op)
 %   A corrente do painel I nao e estado: o painel nao tem dinamica propria
 %   nesta escala, I e a solucao das equacoes algebricas do modulo (KCL em
 %   cada submodulo com o bypass + KVL na serie, residuo_painel) para a
-%   tensao v_pv atual. O modelo e uma DAE de indice 1:
-%       x' = f(x, I),   0 = R(z; v_pv, G, T),   z = [I; Vd_1..Vd_N]
-%
-%   POR QUE NAO PASSAR A DAE DIRETO AO ode15s (matriz de massa singular,
-%   como em sim_medio_aberta): foi a primeira versao, e falhava ("unable to
-%   meet integration tolerances") nos degraus grandes de V_ref do PSO
-%   (ex.: 18,7 V -> 6 V com sombra): 9 de 36 casos de teste com
-%   RelTol = 1e-5, 3 de 36 mesmo com RelTol = 1e-6. Causa: o ode15s
-%   reaproveita o jacobiano por varios passos, e a derivada das KCL em
-%   relacao a Vd_j varia exponencialmente (de ~1e-2 S na regiao de fonte de
-%   corrente a ~1e2 S com o bypass conduzindo); com um jacobiano velho o
-%   Newton interno deixa de corrigir erros em Vd (ex.: Vd_1 sobe e Vd_2
-%   desce em dois submodulos iguais, sem mudar sum(Vj)) e o erro cresce em
-%   silencio. Aqui a restricao algebrica e resolvida por completo a cada
-%   avaliacao (painel_sombreado: Newton com passo limitado ate 1e-9), e o
-%   ode15s so ve a EDO reduzida x' = f(x, I(x)), que e suave. O modelo e o
-%   mesmo; nos casos em que a DAE passava, os resultados coincidem.
-%   O ode15s (implicito) continua necessario: a ressonancia LC, o PI e a
+%   tensao v_pv atual. O ode15s integra a EDO reduzida x' = f(x, I(x)).
+%   A DAE com matriz de massa singular falhava nos degraus grandes do PSO
+%   (jacobiano velho no ode15s); ver decisao D15 no plano.
+%   O ode15s (implicito) e necessario: a ressonancia LC, o PI e a
 %   inclinacao dI/dV do painel sao rapidos e o termico e lento (rigidez).
+%
+%   SEM WARM START NO LADO DIREITO (de proposito): rhs e jacobiano resolvem
+%   o painel partindo do chute padrao de painel_sombreado a cada chamada.
+%   O ode15s avalia o lado direito fora de ordem e em passos que depois
+%   rejeita; guardar a ultima solucao entre chamadas poderia dar resultados
+%   dependentes dessa ordem. Custa CPU (mais iteracoes de Newton), mas e
+%   seguro. O warm start do laco principal so vale no pos-processamento
+%   (corrente nos pontos ja aceitos, em ordem).
 %
 %   MPPT AMOSTRADO: o algoritmo roda a cada ctl.Ta. Entre duas chamadas a
 %   referencia V_ref fica constante (segurador de ordem zero): integramos
@@ -50,28 +50,37 @@ function r = sim_dinamica(cen, alg, cfg, ctl, p, pc, pt, op)
 %   Ta: espera o transitorio do PI depois do degrau de V_ref (criterio de
 %   Femia, Ta = 1,5 ts no pior caso) e filtra o resto de oscilacao.
 %
-%   PI COM ANTI-WINDUP: d = Kp*(e + xi/Ti), e = v_pv - V_ref (sinal invertido:
-%   mais d tira mais corrente e a tensao do painel cai). d e saturado em
-%   [Dmin, Dmax]; quando satura e o erro empurraria d mais para fora, o
-%   integrador para (xi' = 0), senao xi cresceria sem limite e a malha
-%   demoraria a sair da saturacao.
+%   PI COM ANTI-WINDUP: lei_pi (pasta controle), d = Kp*(e + xi/Ti),
+%   e = v_pv - V_ref, saturado em [Dmin, Dmax], integrador congelado quando
+%   satura. O lado direito e DESCONTINUO nas trocas de saturacao/anti-windup;
+%   nao usamos funcoes de evento: o ode15s atravessa a descontinuidade
+%   rejeitando passos e reduzindo o passo ali. Isso pode gerar pequenas
+%   diferencas que dependem do passo (e da tolerancia).
 %   O atraso do PWM (pc.atraso) nao entra aqui: ~75 us, muito menor que o
 %   tempo de acomodacao (~20 ms); ele foi considerado nas margens do PI.
 %
-%   ENERGIA E ORACULO: E = integral de v_pv*I (energia tirada do painel, nos
-%   pontos do integrador). A referencia Eg soma, a cada Ta, a potencia
-%   maxima GLOBAL (oraculo_pmax) na irradiancia do meio do intervalo e na
-%   temperatura atual, vezes Ta. eta = E/Eg e a eficiencia de rastreamento:
-%   um MPPT preso num pico local da eta < 1 mesmo estando "no maximo".
+%   ENERGIA E ORACULO: E = integral de v_pv*I (energia tirada do painel),
+%   pela regra do trapezio nos pontos do integrador; MaxStep = Ta/20 tambem
+%   limita o erro dessa integral. A referencia Eg soma, a cada Ta, a media
+%   da potencia maxima GLOBAL (oraculo_pmax) no inicio e no fim do
+%   intervalo (G e T de cada ponta, G lida logo dentro do intervalo), vezes
+%   Ta (trapezio): um degrau de G dentro do intervalo nao fica enviesado
+%   para um lado, e um degrau na fronteira conta para o periodo certo. eta = E/Eg e a
+%   eficiencia de rastreamento: um MPPT preso num pico local da eta < 1.
 %
 %   Saida (um valor por periodo Ta, k = 1..nK):
-%   r.t (fim do periodo), r.V, r.I, r.P (medias da janela), r.T, r.Vref
-%   (referencia aplicada no periodo), r.Pg (oraculo), r.d (razao ciclica no
-%   fim), r.ccm (conducao continua no fim do periodo, verifica_ccm).
-%   Totais: r.E, r.Eg [J], r.eta, r.T0 (temperatura inicial),
-%   r.fracDCM (fracao dos periodos em DCM: ali o modelo medio de CCM e
-%   otimista), r.nReinicios (reinicios do PSO; NaN se o algoritmo nao tem),
-%   r.tempo_cpu [s].
+%   r.t (fim do periodo), r.V, r.I (medias da janela), r.P = r.V*r.I
+%   (produto das medias, nao a media de v*I: para comparar energia use r.E),
+%   r.T, r.Vref (referencia aplicada no periodo), r.Pg (oraculo, media das
+%   duas pontas), r.d (razao ciclica no fim), r.ccm (conducao continua no
+%   fim do periodo, verifica_ccm).
+%   Totais: r.E, r.Eg [J], r.eta (NaN se Eg = 0, ex. noite), r.T0,
+%   r.fracDCM (fracao dos periodos em DCM: o modelo medio e o de CCM, que em
+%   DCM subestima as perdas de conducao e nao tem a dinamica certa; ali os
+%   resultados sao otimistas/aproximados), r.nReinicios (reinicios do PSO;
+%   NaN se o algoritmo nao tem), r.iLmin (menor i_L em todos os pontos),
+%   r.nAvisosNewton (periodos com aviso de Newton do painel sem
+%   convergencia), r.tempo_cpu [s].
 
 if ~isfield(op, 'T'), op.T = 298.15; end
 if ~isfield(op, 'V0'), op.V0 = cfg.Vref0; end
@@ -98,13 +107,17 @@ eq = equilibrio_conversor(v0, I0, pc);
 if ~eq.viavel
     error('sim_dinamica:inicioInviavel', ...
         ['Ponto inicial V0 = %.3f V (I = %.3f A) sem equilibrio do conversor ' ...
-         '(I <= 0 ou d fora de [%.2f, %.2f]): escolha outro op.V0'], ...
+         '(I <= 0 ou d fora de [%.2f, %.2f]): comece com G > 0 ou escolha outro op.V0'], ...
         v0, I0, pc.Dmin, pc.Dmax);
 end
 xi0 = ctl.Ti * (eq.d / ctl.Kp - (v0 - cfg.Vref0));
 x = [v0; eq.iL; xi0; T0];
 
 % MaxStep = Ta/20: garante varios pontos na janela de medida (20 % de Ta)
+% e limita o erro do trapezio na integral da energia
+% Sem a opcao NonNegative em i_L: testada, ela fez o ode15s falhar no
+% anoitecer (G -> 0). O bloqueio do diodo em derivadas basta; i_L pode
+% passar de 0 so pelo erro do integrador (ordem de AbsTol = 1e-7 A).
 base = odeset('RelTol', 1e-5, 'AbsTol', 1e-7, 'MaxStep', Ta / 20);
 
 Vref = cfg.Vref0;
@@ -112,11 +125,24 @@ e = [];                                % estado interno do MPPT (vazio = primeir
 r.t = zeros(nK, 1);  r.V = r.t;  r.I = r.t;  r.P = r.t;  r.T = r.t;
 r.Vref = r.t;  r.Pg = r.t;  r.d = r.t;  r.ccm = false(nK, 1);
 E = 0;  Eg = 0;
-Gant = [];  Tant = NaN;  Pg = NaN;     % cache do oraculo
+iLmin = x(2);
+nAvisos = 0;
+cache = struct('G', [], 'T', NaN, 'Pg', NaN);   % cache do oraculo
 
 for k = 1:nK
     t0 = (k - 1) * Ta;
     t1 = t0 + Ta;
+    % Oraculo na ponta inicial (G e T no inicio do intervalo). G e lida um
+    % instante DENTRO do intervalo (dt = 1e-9 Ta): um degrau de G exatamente
+    % na fronteira entre dois periodos conta inteiro para o periodo em que
+    % ele vale, e nao pela metade
+    dt = 1e-9 * Ta;
+    [Pg0, cache] = oraculo_com_cache(cen.G(t0 + dt), x(4), p, cache);
+
+    % Aviso de Newton sem convergencia: zera o ultimo aviso e confere no
+    % fim do periodo (conta periodos com aviso, nao avisos individuais)
+    lastwarn('', '');
+
     % V_ref fica constante dentro do intervalo (segurador de ordem zero)
     f = @(t, x) rhs(t, x, Vref, m);
     opts = odeset(base, 'Jacobian', @(t, x) jacobiano(t, x, Vref, m));
@@ -124,10 +150,13 @@ for k = 1:nK
     if tt(end) < t1 - 1e-9 * Ta
         error('sim_dinamica:ode15s', 'ode15s parou em t = %.6f s (periodo %d)', tt(end), k);
     end
+    iLmin = min(iLmin, min(xx(:, 2)));
     x = xx(end, :).';
+    % O diodo nao deixa i_L ficar negativa: corta o erro numerico residual
+    x(2) = max(x(2), 0);
 
-    % Corrente do painel em cada ponto do integrador (o Newton parte da
-    % solucao do ponto anterior, que esta perto)
+    % Corrente do painel em cada ponto aceito pelo integrador (pos-
+    % processamento: aqui o warm start e seguro, os pontos estao em ordem)
     Ik = zeros(numel(tt), 1);
     z = [];
     for i = 1:numel(tt)
@@ -142,14 +171,15 @@ for k = 1:nK
     Vm = media_janela(tt, xx(:, 1), t0 + 0.8 * Ta);
     Im = media_janela(tt, Ik, t0 + 0.8 * Ta);
 
-    % Oraculo: pico global no meio do periodo. So recalcula se G ou T
-    % mudaram (0,01 K muda Pmp em ~4e-5, desprezivel)
-    Gk = cen.G(t0 + Ta / 2);
-    if ~isequal(Gk, Gant) || abs(x(4) - Tant) > 0.01
-        Pg = oraculo_pmax(Gk, x(4), p);
-        Gant = Gk;  Tant = x(4);
-    end
+    % Oraculo na ponta final e trapezio: Eg += (Pg0 + Pg1)/2 * Ta
+    [Pg1, cache] = oraculo_com_cache(cen.G(t1 - dt), x(4), p, cache);
+    Pg = (Pg0 + Pg1) / 2;
     Eg = Eg + Pg * Ta;
+
+    [~, id] = lastwarn;
+    if strcmp(id, 'painel_sombreado:naoConvergiu')
+        nAvisos = nAvisos + 1;
+    end
 
     % Conducao continua no fim do periodo (estado medio)
     dk = lei_pi(x(1), x(3), Vref, ctl, pc);
@@ -162,7 +192,12 @@ for k = 1:nK
     [Vref, e] = alg(Vm, Im, e, cfg);
 end
 
-r.E = E;  r.Eg = Eg;  r.eta = E / Eg;
+r.E = E;  r.Eg = Eg;
+if Eg > 0
+    r.eta = E / Eg;
+else
+    r.eta = NaN;     % sem potencia disponivel (noite): eficiencia indefinida
+end
 r.T0 = T0;
 r.fracDCM = sum(~r.ccm) / nK;
 if isstruct(e) && isfield(e, 'nReinicios')
@@ -170,7 +205,21 @@ if isstruct(e) && isfield(e, 'nReinicios')
 else
     r.nReinicios = NaN;
 end
+r.iLmin = iLmin;
+r.nAvisosNewton = nAvisos;
 r.tempo_cpu = toc;
+end
+
+function [Pg, cache] = oraculo_com_cache(G, T, p, cache)
+% oraculo_pmax so e recalculado se G ou T mudaram (0,01 K muda Pmp em
+% ~4e-5, desprezivel). Com G constante, a ponta final de um intervalo e a
+% inicial do seguinte caem no cache.
+if ~isequal(G, cache.G) || abs(T - cache.T) > 0.01
+    cache.Pg = oraculo_pmax(G, T, p);
+    cache.G = G;
+    cache.T = T;
+end
+Pg = cache.Pg;
 end
 
 function ym = media_janela(tt, y, t_ini)
@@ -184,38 +233,10 @@ end
 ym = trapz(tt(k), y(k)) / (tt(k(end)) - tt(k(1)));
 end
 
-function [d, dxi, modo] = lei_pi(v, xi, Vref, ctl, pc, modo)
-% PI com saturacao e anti-windup.
-%   modo = [lado, integra]: lado = +1 (d em Dmax), -1 (d em Dmin) ou 0
-%   (linear); integra = 1 se o integrador esta ativo, 0 se congelado.
-%   Sem o argumento modo, ele e decidido pelo estado atual. Passar modo
-%   congela a logica de saturacao (usado no jacobiano, ver jacobiano).
-err = v - Vref;
-du = ctl.Kp * (err + xi / ctl.Ti);        % comando antes da saturacao
-if nargin < 6
-    lado = 0;
-    if du > pc.Dmax
-        lado = 1;
-    elseif du < pc.Dmin
-        lado = -1;
-    end
-    % Anti-windup: com d saturado, para de integrar se o erro empurraria
-    % du ainda mais para fora da faixa (err > 0 aumenta du)
-    integra = ~((lado == 1 && err > 0) || (lado == -1 && err < 0));
-    modo = [lado, integra];
-end
-if modo(1) == 1
-    d = pc.Dmax;
-elseif modo(1) == -1
-    d = pc.Dmin;
-else
-    d = du;
-end
-dxi = modo(2) * err;
-end
-
-function f = derivadas(t, x, I, Vref, m, modo)
+function f = derivadas(t, x, I, Vref, m, modo, bloqueado)
 % [dv_pv/dt; di_L/dt; dxi/dt; dT/dt] com a corrente do painel I dada.
+% modo (PI) e bloqueado (diodo) opcionais: quando passados, ficam
+% congelados (jacobiano por diferencas finitas, ver jacobiano).
 v = x(1);  iL = x(2);  xi = x(3);  T = x(4);
 if nargin < 6
     [d, dxi] = lei_pi(v, xi, Vref, m.ctl, m.pc);
@@ -229,11 +250,23 @@ if m.termico
 else
     dT = 0;
 end
-f = [conversor_medio_rhs(v, iL, I, d, m.pc); dxi; dT];
+dx = conversor_medio_rhs(v, iL, I, d, m.pc);
+% Diodo bloqueia corrente reversa: o indutor so descarrega na bateria pelo
+% diodo, entao a corrente media nao pode ficar negativa (a bateria nao
+% empurra corrente de volta). Com i_L ja em 0 e a derivada apontando para
+% baixo (pouca irradiancia: d*v_pv nao vence Vbat), i_L fica parada em 0.
+if nargin < 7
+    bloqueado = iL <= 0 && dx(2) < 0;
+end
+if bloqueado
+    dx(2) = 0;
+end
+f = [dx; dxi; dT];
 end
 
 function f = rhs(t, x, Vref, m)
-% Lado direito da EDO reduzida: resolve o painel em v_pv e aplica derivadas.
+% Lado direito da EDO reduzida: resolve o painel em v_pv (sem warm start,
+% ver cabecalho) e aplica derivadas.
 I = painel_sombreado(x(1), m.cen.G(t), x(4), m.p);
 f = derivadas(t, x, I, Vref, m);
 end
@@ -243,11 +276,12 @@ function J = jacobiano(t, x, Vref, m)
 % da cadeia: df/dx = df/dx|_I + df/dI * dI/dx.
 %
 % 1) df/dx|_I e df/dI: diferencas finitas de derivadas() (suave em x e I).
-%    A saturacao e o anti-windup do PI sao descontinuos: se o passo de
-%    diferenca atravessasse Dmax/Dmin a coluna sairia com um salto enorme.
-%    Por isso o modo do PI (lado saturado e integrador ativo/congelado) e
-%    decidido UMA vez em x e congelado nas avaliacoes perturbadas: o
-%    jacobiano e o do ramo ativo, que e o que o Newton do ode15s precisa.
+%    A saturacao e o anti-windup do PI e o bloqueio do diodo sao
+%    descontinuos: se o passo de diferenca atravessasse um desses limites a
+%    coluna sairia com um salto enorme. Por isso o modo do PI e o estado do
+%    diodo sao decididos UMA vez em x e congelados nas avaliacoes
+%    perturbadas: o jacobiano e o do ramo ativo, que e o que o Newton do
+%    ode15s precisa.
 % 2) dI/dv e dI/dT: derivada implicita das equacoes do painel R(z) = 0,
 %    com o jacobiano ANALITICO Jz = dR/dz de residuo_painel:
 %        Jz * dz/dv = -dR/dv = [0; ...; 0; 1]   (so a KVL tem v_pv)
@@ -267,16 +301,19 @@ dR_dT = (residuo_painel(z, x(1), G, x(4) + hT, m.p) ...
 dz_dT = -(Jz \ dR_dT);
 
 [~, ~, modo] = lei_pi(x(1), x(3), Vref, m.ctl, m.pc);
-f0 = derivadas(t, x, I, Vref, m, modo);
+d = lei_pi(x(1), x(3), Vref, m.ctl, m.pc, modo);
+di = conversor_medio_rhs(x(1), x(2), I, d, m.pc);
+bloqueado = x(2) <= 0 && di(2) < 0;
+f0 = derivadas(t, x, I, Vref, m, modo, bloqueado);
 J = zeros(4);
 for j = 1:4
     h = 1e-6 * max(1, abs(x(j)));
     xp = x;
     xp(j) = xp(j) + h;
-    J(:, j) = (derivadas(t, xp, I, Vref, m, modo) - f0) / h;
+    J(:, j) = (derivadas(t, xp, I, Vref, m, modo, bloqueado) - f0) / h;
 end
 hI = 1e-6 * max(1, abs(I));
-df_dI = (derivadas(t, x, I + hI, Vref, m, modo) - f0) / hI;
+df_dI = (derivadas(t, x, I + hI, Vref, m, modo, bloqueado) - f0) / hI;
 
 % Regra da cadeia: I depende de v_pv (curva I-V) e de T (celula aquece)
 J(:, 1) = J(:, 1) + df_dI * dz_dv(1);
