@@ -1532,6 +1532,8 @@ disp(groupsummary(tab, {'sombra', 'algoritmo'}, {'mean', 'min'}, 'eta'));
 
 ### Tarefa 10: Simulação dinâmica completa (DAE em malha fechada + MPPT + térmico)
 
+> **Nota (decisão D15):** o código abaixo mostra a formulação DAE com matriz de massa do plano original. A implementação final usa uma EDO reduzida de 4 estados (corrente do painel resolvida por Newton a cada avaliação); ver D15 e o cabeçalho de `matlab/simulacao/sim_dinamica.m`.
+
 **Files:**
 - Create: `matlab/simulacao/oraculo_pmax.m`, `matlab/simulacao/sim_dinamica.m`, `matlab/cenarios/cenario_constante.m`, `matlab/tests/test_sim_dinamica.m`
 
