@@ -7,14 +7,17 @@ function r = sim_quase_estatica(cen, alg, cfg, ctl, p, pc, pt, op)
 %   alg : algoritmo de MPPT, [Vref, e] = alg(V, I, e, cfg); cfg = config_mppt(p)
 %   ctl : PI de tensao (projeto_pi); aqui so o periodo do MPPT ctl.Ta e usado
 %   p, pc, pt : painel, conversor e parametros termicos
-%   op.termico    : true -> temperatura evolui pelo balanco de energia;
-%                   false -> fica constante em op.T
+%   op.termico    : OBRIGATORIO. true -> temperatura evolui pelo balanco de
+%                   energia; false -> fica constante em op.T
 %   op.T          : temperatura fixa quando op.termico = false [K] (padrao 298,15)
 %   op.perdas     : true (padrao) -> potencia na bateria com as perdas do
 %                   conversor; false -> conversor ideal (Pout = P do painel)
 %   op.dt_oraculo : intervalo entre avaliacoes do oraculo [s] (padrao ctl.Ta)
 %   op.t_ini      : instante inicial da simulacao [s] (padrao 0); simula
 %                   de t_ini a cen.t_fim (ex.: so a janela de dia)
+%   op.n_log      : guarda as series r.t, r.V, ... so a cada n_log periodos
+%                   (padrao 1; economiza memoria em simulacoes de horas).
+%                   Os totais (E, Eg, ...) somam TODOS os periodos.
 %   op.V0         : aceito por compatibilidade com sim_dinamica, mas SEM
 %                   EFEITO: aqui o PI ja chega em V_ref no 1o periodo.
 %
@@ -28,13 +31,14 @@ function r = sim_quase_estatica(cen, alg, cfg, ctl, p, pc, pt, op)
 %   hipotese e a energia do transitorio depois de cada degrau de V_ref
 %   (pequeno para P&O/InC, maior para os degraus grandes do PSO); o teste
 %   test_quase_estatica mede essa diferenca contra sim_dinamica.
-%   VIES DO PSO: com o PSO buscando o tempo todo (4 s com reinicio), o
-%   quase-estatico da ~-1,1 % de energia. Causa: depois de um degrau grande
-%   de V_ref, o transitorio do PI passa por tensoes ENTRE as particulas
-%   (perto do pico), com mais potencia que nas pontas; o quase-estatico so
-%   conta a potencia em V_ref. O erro e CONSERVADOR contra o PSO e so pesa
-%   enquanto ele busca: numa janela tipica de 20 s (busca de ~1-2 s e depois
-%   segura o gbest) a diferenca cai para ~-0,3 %; em P&O/InC fica < 0,4 %.
+%   VIES DO PSO (decisao D16): com o PSO buscando o tempo todo (4 s com
+%   reinicio), o quase-estatico da ~-1,1 % de energia. Causa: depois de um
+%   degrau grande de V_ref, o transitorio do PI passa por tensoes ENTRE as
+%   particulas (perto do pico), com mais potencia que nas pontas; o
+%   quase-estatico so conta a potencia em V_ref. O erro e CONSERVADOR contra
+%   o PSO e so pesa enquanto ele busca: numa janela tipica de 20 s (busca de
+%   ~1-2 s e depois segura o gbest) a diferenca cai para ~-0,3 %; em
+%   P&O/InC fica ~+0,1 %.
 %
 %   SEPARACAO DE ESCALAS DE TEMPO: o termico tem constantes de tempo de
 %   minutos (a menor ~2,3 min) e Ta e de ~30 ms (milhares de vezes menor).
@@ -42,7 +46,8 @@ function r = sim_quase_estatica(cen, alg, cfg, ctl, p, pc, pt, op)
 %       T(k+1) = T(k) + Ta * dT/dt(T(k), G, Tamb, vw, P),
 %   que e estavel (precisa de Ta < 2*tau) e preciso nessa escala.
 %   Acoplamento igual ao de sim_dinamica: G do balanco = media dos
-%   submodulos; a potencia eletrica P do painel sai do modulo e nao vira calor.
+%   submodulos; a potencia eletrica P do painel sai do modulo e nao vira
+%   calor. G, Tamb e vw sao lidos no mesmo instante (inicio do periodo).
 %
 %   ENERGIA E ORACULO (mesma conta de sim_dinamica, para comparar 1 a 1):
 %   - E: regra do trapezio com a potencia nas duas pontas do periodo
@@ -51,16 +56,19 @@ function r = sim_quase_estatica(cen, alg, cfg, ctl, p, pc, pt, op)
 %     como na integral da dinamica.
 %   - Eg: com op.dt_oraculo = Ta, trapezio do oraculo nas duas pontas,
 %     exatamente como sim_dinamica. Com op.dt_oraculo > Ta (simulacoes
-%     longas: o oraculo e a parte cara), o oraculo e avaliado no inicio de
-%     cada bloco de dt_oraculo e SEGURADO no bloco (ordem zero). APROXIMACAO:
-%     em rampas de G o oraculo fica atrasado em ate dt_oraculo; escolha
-%     dt_oraculo bem menor que a escala das variacoes de G.
+%     longas: o oraculo e a parte cara), os periodos sao agrupados em blocos
+%     de passoOr = round(dt_oraculo/Ta) periodos, alinhados a t_ini (o
+%     ultimo bloco pode ser mais curto). O oraculo e avaliado UMA vez por
+%     bloco, no PONTO MEDIO do bloco (G no meio, T do inicio do bloco), e
+%     segurado no bloco inteiro. Regra do ponto medio: numa rampa de G o erro
+%     de primeira ordem se cancela (o que falta numa metade sobra na outra);
+%     sobra um erro de ~h^3/24 * |Pg''| por bloco de duracao h. Segurar o
+%     valor do INICIO do bloco daria erro ~h^2/2 * |Pg'| (atraso).
 %     RECOMENDADO para simulacoes longas (EN 50530, dia): dt_oraculo = 1 s.
 %     Custo medido (G variando a cada instante, por hora simulada):
 %     dt_oraculo = 1 s -> ~61-67 s de CPU; dt_oraculo = Ta -> ~2500 s;
-%     dt_oraculo = 60 s -> ~20 s, mas atrasa nas rampas: com ~0,5 W/m^2/s
-%     o oraculo segurado ja da eta ~ 1,02 (as rampas da EN 50530 sao mais
-%     ingremes).
+%     dt_oraculo = 60 s -> ~20 s, mas erra nas rampas (medido com o
+%     oraculo do inicio do bloco: eta ~ 1,02 numa rampa de ~0,5 W/m^2/s).
 %   - eta = E/Eg (NaN se Eg = 0, ex. noite).
 %   - Medida do MPPT: V_ref e a corrente na ponta FINAL do periodo (na
 %     dinamica e a media dos ultimos 20 % do periodo).
@@ -76,24 +84,41 @@ function r = sim_quase_estatica(cen, alg, cfg, ctl, p, pc, pt, op)
 %   painel (aproximacao; potencia desprezivel nessas tensoes).
 %   Sem corrente (I <= 0, ex. noite) nao e inviavel: so nao ha transferencia.
 %
-%   Saida (um valor por periodo Ta, k = 1..nK):
-%   r.t (fim do periodo), r.V = r.Vref (tensao aplicada = V_ref), r.I e
-%   r.P (na ponta final), r.Pg (oraculo do periodo), r.T (fim do periodo).
-%   Totais: r.E, r.Eg, r.Eout [J] (energia na bateria), r.eta, r.eta_conv =
-%   Eout/E (NaN se E = 0), r.fracDCM (fracao dos periodos com transferencia
-%   em DCM, na ponta final), r.fracInviavel, r.nReinicios (PSO; NaN se o
-%   algoritmo nao tem), r.T0, r.tempo_cpu [s].
+%   Saida (series, uma amostra a cada n_log periodos):
+%   r.t (fim do periodo), r.Vref (tensao aplicada), r.V (= r.Vref, mesmo
+%   nome de sim_dinamica), r.I e r.P (na ponta final), r.Pg (oraculo do
+%   periodo), r.T (fim do periodo).
+%   Totais (todos os periodos): r.E, r.Eg, r.Eout [J] (energia na bateria),
+%   r.eta, r.eta_conv = Eout/E (NaN se E = 0), r.fracTransferencia
+%   (periodos com I > 0), r.fracDCM e r.fracInviavel (fracoes de TODOS os
+%   periodos, na ponta final; um periodo de noite nao e nem DCM nem
+%   inviavel), r.nReinicios (PSO; NaN se o algoritmo nao tem),
+%   r.nAvisosNewton (periodos em que o Newton do painel nao convergiu),
+%   r.T0, r.tempo_cpu [s de CPU, cputime].
 
 if ~isfield(op, 'T'), op.T = 298.15; end
 if ~isfield(op, 'perdas'), op.perdas = true; end
 if ~isfield(op, 'dt_oraculo'), op.dt_oraculo = ctl.Ta; end
 if ~isfield(op, 't_ini'), op.t_ini = 0; end
-tic;
+if ~isfield(op, 'n_log'), op.n_log = 1; end
+cpu0 = cputime;
 Ta = ctl.Ta;
-nK = floor((cen.t_fim - op.t_ini) / Ta);
-% Numero de periodos Ta entre duas avaliacoes do oraculo
+% + 1e-9: (t_fim - t_ini)/Ta inteiro pode sair 9,9999999 por arredondamento
+% e o floor perderia o ultimo periodo
+nK = floor((cen.t_fim - op.t_ini) / Ta + 1e-9);
+% Numero de periodos Ta em cada bloco do oraculo
 passoOr = max(1, round(op.dt_oraculo / Ta));
 dt = 1e-9 * Ta;          % "logo dentro" do intervalo (ver ENERGIA E ORACULO)
+
+% Newton do painel sem convergir: painel_sombreado avisa com warning, mas
+% numa simulacao de horas os avisos inundariam a tela e deixariam tudo
+% lento. Desligamos o aviso aqui (e religamos ao sair, mesmo com erro,
+% pelo onCleanup) e contamos os casos pelo residuo devolvido (sol.res),
+% com a mesma tolerancia que painel_sombreado usa para avisar.
+idAviso = 'painel_sombreado:naoConvergiu';
+estadoAviso = warning('off', idAviso);
+restaura = onCleanup(@() warning(estadoAviso));
+tolNewton = 1e-9;
 
 % --- Temperatura inicial ---
 if op.termico
@@ -110,8 +135,10 @@ e = [];                  % estado interno do MPPT (vazio = primeira chamada)
 z = [];                  % ultima solucao do painel (warm start do Newton)
 cache = struct('G', [], 'T', NaN, 'Pg', NaN);   % cache do oraculo
 PgSegurado = 0;
-E = 0;  Eg = 0;  Eout = 0;  nDCM = 0;  nInviavel = 0;
-r.t = zeros(nK, 1);  r.V = r.t;  r.Vref = r.t;  r.I = r.t;  r.P = r.t;
+E = 0;  Eg = 0;  Eout = 0;
+nDCM = 0;  nInviavel = 0;  nTransf = 0;  nAvisos = 0;
+nLog = floor(nK / op.n_log);
+r.t = zeros(nLog, 1);  r.Vref = r.t;  r.I = r.t;  r.P = r.t;
 r.Pg = r.t;  r.T = r.t;
 
 for k = 1:nK
@@ -123,6 +150,7 @@ for k = 1:nK
     % --- Ponta inicial: painel em V_ref (PI assentado) ---
     [Ia, sol] = painel_sombreado(Vref, Ga, T, p, z);
     z = sol.z;
+    naoConvergiu = sol.res > tolNewton;
     % O diodo do conversor nao deixa corrente voltar para o painel
     Ia = max(Ia, 0);
     Pa = Vref * Ia;
@@ -131,13 +159,18 @@ for k = 1:nK
     if passoOr == 1
         [Pga, cache] = oraculo_com_cache(Ga, T, p, cache);
     elseif mod(k - 1, passoOr) == 0
-        % Inicio de um bloco de dt_oraculo: avalia e segura ate o proximo
-        PgSegurado = oraculo_pmax(Ga, T, p);
+        % Inicio de um bloco: avalia no ponto medio do bloco e segura.
+        % O ultimo bloco pode ter menos periodos (nK nao multiplo de passoOr):
+        % o meio e o do bloco REAL, para a regra do ponto medio continuar valendo.
+        nBloco = min(passoOr, nK - k + 1);
+        tMeio = t0 + nBloco * Ta / 2;
+        PgSegurado = oraculo_pmax(cen.G(tMeio), T, p);
     end
 
     % --- Termico: um passo de Euler de tamanho Ta ---
+    % Forcantes (G, Tamb, vento) no mesmo instante, logo dentro do periodo
     if op.termico
-        Tb = T + Ta * termico_dTdt(T, mean(Ga), cen.Tamb(t0), cen.vw(t0), Pa, pt);
+        Tb = T + Ta * termico_dTdt(T, mean(Ga), cen.Tamb(t0 + dt), cen.vw(t0 + dt), Pa, pt);
     else
         Tb = T;
     end
@@ -145,8 +178,12 @@ for k = 1:nK
     % --- Ponta final ---
     [Ib, sol] = painel_sombreado(Vref, Gb, Tb, p, z);
     z = sol.z;
+    naoConvergiu = naoConvergiu || sol.res > tolNewton;
     Ib = max(Ib, 0);
     Pb = Vref * Ib;
+    if naoConvergiu
+        nAvisos = nAvisos + 1;      % conta periodos, como em sim_dinamica
+    end
 
     % Energia do painel no periodo (trapezio, como a integral da dinamica)
     E = E + (Pa + Pb) / 2 * Ta;
@@ -165,6 +202,9 @@ for k = 1:nK
     Pouta = potencia_saida(Vref, Ia, pc, op.perdas);
     [Poutb, situacao] = potencia_saida(Vref, Ib, pc, op.perdas);
     Eout = Eout + (Pouta + Poutb) / 2 * Ta;
+    if ~strcmp(situacao, 'semCorrente')
+        nTransf = nTransf + 1;
+    end
     if strcmp(situacao, 'dcm')
         nDCM = nDCM + 1;
     elseif strcmp(situacao, 'inviavel')
@@ -172,13 +212,18 @@ for k = 1:nK
     end
 
     T = Tb;
-    r.t(k) = t1;  r.V(k) = Vref;  r.Vref(k) = Vref;  r.I(k) = Ib;
-    r.P(k) = Pb;  r.Pg(k) = Pg;  r.T(k) = T;
+    % Series: so a cada n_log periodos
+    if mod(k, op.n_log) == 0
+        j = k / op.n_log;
+        r.t(j) = t1;  r.Vref(j) = Vref;  r.I(j) = Ib;
+        r.P(j) = Pb;  r.Pg(j) = Pg;  r.T(j) = T;
+    end
 
     % MPPT: mede (V_ref, I) no fim do periodo e escolhe a proxima referencia
     [Vref, e] = alg(Vref, Ib, e, cfg);
 end
 
+r.V = r.Vref;            % tensao do painel = V_ref (PI assentado)
 r.E = E;  r.Eg = Eg;  r.Eout = Eout;
 if Eg > 0
     r.eta = E / Eg;
@@ -190,6 +235,7 @@ if E > 0
 else
     r.eta_conv = NaN;    % nada passou pelo conversor
 end
+r.fracTransferencia = nTransf / nK;
 r.fracDCM = nDCM / nK;
 r.fracInviavel = nInviavel / nK;
 if isstruct(e) && isfield(e, 'nReinicios')
@@ -197,8 +243,9 @@ if isstruct(e) && isfield(e, 'nReinicios')
 else
     r.nReinicios = NaN;
 end
+r.nAvisosNewton = nAvisos;
 r.T0 = T0;
-r.tempo_cpu = toc;
+r.tempo_cpu = cputime - cpu0;
 end
 
 function [Pout, situacao] = potencia_saida(V, I, pc, perdas)
