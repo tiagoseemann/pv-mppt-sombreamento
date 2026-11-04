@@ -28,6 +28,13 @@ function r = sim_quase_estatica(cen, alg, cfg, ctl, p, pc, pt, op)
 %   hipotese e a energia do transitorio depois de cada degrau de V_ref
 %   (pequeno para P&O/InC, maior para os degraus grandes do PSO); o teste
 %   test_quase_estatica mede essa diferenca contra sim_dinamica.
+%   VIES DO PSO: com o PSO buscando o tempo todo (4 s com reinicio), o
+%   quase-estatico da ~-1,1 % de energia. Causa: depois de um degrau grande
+%   de V_ref, o transitorio do PI passa por tensoes ENTRE as particulas
+%   (perto do pico), com mais potencia que nas pontas; o quase-estatico so
+%   conta a potencia em V_ref. O erro e CONSERVADOR contra o PSO e so pesa
+%   enquanto ele busca: numa janela tipica de 20 s (busca de ~1-2 s e depois
+%   segura o gbest) a diferenca cai para ~-0,3 %; em P&O/InC fica < 0,4 %.
 %
 %   SEPARACAO DE ESCALAS DE TEMPO: o termico tem constantes de tempo de
 %   minutos (a menor ~2,3 min) e Ta e de ~30 ms (milhares de vezes menor).
@@ -48,9 +55,12 @@ function r = sim_quase_estatica(cen, alg, cfg, ctl, p, pc, pt, op)
 %     cada bloco de dt_oraculo e SEGURADO no bloco (ordem zero). APROXIMACAO:
 %     em rampas de G o oraculo fica atrasado em ate dt_oraculo; escolha
 %     dt_oraculo bem menor que a escala das variacoes de G.
+%     RECOMENDADO para simulacoes longas (EN 50530, dia): dt_oraculo = 1 s.
 %     Custo medido (G variando a cada instante, por hora simulada):
-%     dt_oraculo = Ta -> ~45 min de CPU; 1 s -> ~1 min; 60 s -> ~20 s, mas
-%     numa rampa de ~0,5 W/m^2/s o oraculo atrasado ja da eta ~ 1,02.
+%     dt_oraculo = 1 s -> ~61-67 s de CPU; dt_oraculo = Ta -> ~2500 s;
+%     dt_oraculo = 60 s -> ~20 s, mas atrasa nas rampas: com ~0,5 W/m^2/s
+%     o oraculo segurado ja da eta ~ 1,02 (as rampas da EN 50530 sao mais
+%     ingremes).
 %   - eta = E/Eg (NaN se Eg = 0, ex. noite).
 %   - Medida do MPPT: V_ref e a corrente na ponta FINAL do periodo (na
 %     dinamica e a media dos ultimos 20 % do periodo).

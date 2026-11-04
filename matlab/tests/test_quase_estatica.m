@@ -13,6 +13,11 @@ cen.G = @(t) [1000 1000 1000 - 600 * (t > 2)];
 cen.Tamb = @(t) 298.15;  cen.vw = @(t) 1;  cen.t_fim = 4;
 tc.TestData = struct('p', p, 'pc', pc, 'ctl', ctl, 'cen', cen, ...
     'pt', parametros_termicos(datasheet_painel('ztp160m')), 'cfg', config_mppt(p));
+% Painel real (ZTP-160M) para a janela representativa
+pz = parametros_painel('ztp160m');
+pcz = parametros_conversor(pz, 12);
+[ctlz, ~] = projeto_pi(pz, pcz);
+tc.TestData.ztp = struct('p', pz, 'pc', pcz, 'ctl', ctlz, 'cfg', config_mppt(pz));
 end
 
 function [rq, rd] = compara(tc, alg)
@@ -48,6 +53,37 @@ function test_energia_igual_a_dinamica_pso(tc)
 verifyEqual(tc, rq.E, rd.E, 'RelTol', 0.01);
 verifyEqual(tc, rq.nReinicios, rd.nReinicios);
 verifyEqual(tc, rq.Eg, rd.Eg, 'RelTol', 1e-3);
+end
+
+function [rq, rd] = compara_janela(tc, alg)
+% Janela de 20 s com o ZTP-160M: 1000 W/m^2 uniforme ate ~5 s, depois [1000 1000 400].
+% O degrau cai EXATAMENTE numa fronteira de periodo Ta: assim o trapezio nas
+% pontas nao soma o vies de "meio degrau" (~0,25 %, ver o teste do PSO acima)
+% e a diferenca medida e so a da hipotese quase-estatica.
+d = tc.TestData;  z = d.ztp;
+tDegrau = round(5 / z.ctl.Ta) * z.ctl.Ta;
+cen.G = @(t) [1000 1000 1000 - 600 * (t >= tDegrau)];
+cen.Tamb = @(t) 298.15;  cen.vw = @(t) 1;  cen.t_fim = 20;
+cfg = z.cfg;  cfg.seed = 1;
+op = struct('termico', true, 'perdas', false);
+rd = sim_dinamica(cen, alg, cfg, z.ctl, z.p, z.pc, d.pt, op);
+rq = sim_quase_estatica(cen, alg, cfg, z.ctl, z.p, z.pc, d.pt, op);
+fprintf('janela 20 s, %s: E din = %.3f J, E qe = %.3f J, dif = %+.3f %%; eta din = %.4f, eta qe = %.4f\n', ...
+    func2str(alg), rd.E, rq.E, 100 * (rq.E / rd.E - 1), rd.eta, rq.eta);
+end
+
+function test_energia_pso_janela_representativa(tc)
+% PSO numa janela tipica (busca de ~1-2 s e depois segura o gbest): energia a menos de 1 % da dinamica.
+% Medido: -0,32 % (E din = 1956,8 J, E qe = 1950,6 J; eta 0,976 x 0,973).
+[rq, rd] = compara_janela(tc, @mppt_pso);
+verifyEqual(tc, rq.E, rd.E, 'RelTol', 0.01);
+end
+
+function test_energia_po_janela_representativa(tc)
+% P&O na mesma janela de 20 s: energia a menos de 1 % da dinamica.
+% Medido: +0,008 % (P&O fica no pico local depois da sombra: eta ~ 0,79 nos dois).
+[rq, rd] = compara_janela(tc, @mppt_po);
+verifyEqual(tc, rq.E, rd.E, 'RelTol', 0.01);
 end
 
 function test_oraculo_eficiencia_unitaria(tc)
