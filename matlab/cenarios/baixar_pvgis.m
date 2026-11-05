@@ -13,5 +13,7 @@ arq = fullfile(raiz_projeto(), 'data', 'clima', sprintf('pvgis_floripa_%d.csv', 
 txt = webread(url, 'lat', -27.595, 'lon', -48.548, 'startyear', ano, ...
     'endyear', ano, 'angle', 27, 'aspect', 180, 'outputformat', 'csv', ...
     weboptions('ContentType', 'text', 'Timeout', 60));
-fid = fopen(arq, 'w');  fprintf(fid, '%s', txt);  fclose(fid);
+fid = fopen(arq, 'w');
+assert(fid > 0, 'Nao foi possivel criar %s (a pasta data/clima existe?)', arq);
+fprintf(fid, '%s', txt);  fclose(fid);
 end

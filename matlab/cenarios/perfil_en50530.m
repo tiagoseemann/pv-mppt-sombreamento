@@ -5,9 +5,14 @@ function cen = perfil_en50530(arq, Nsub, Tamb, vw)
 %   G(t) e montado como uma lista de pontos (tempo, irradiancia) interpolada
 %   linearmente entre eles. A irradiancia e a mesma em todos os submodulos
 %   (a norma testa o MPPT sem sombreamento parcial).
-if nargin < 3, Tamb = 298.15; end
+%   As funcoes do cenario aceitam t escalar (como os simuladores chamam).
+if nargin < 3, Tamb = 298.15; end    % 25 C, condicao de ensaio
 if nargin < 4, vw = 1; end
 tab = readtable(arq, 'CommentStyle', '%', 'TextType', 'string');
+% O interpolador exige instantes estritamente crescentes: a espera precisa ser maior
+% que o degrau de 1 ms, e rampas e patamares precisam ter duracao positiva.
+assert(all(tab.espera_s > 1e-3) && all(tab.patamar_s > 0) && all(tab.G_alto > tab.G_baixo), ...
+    'Tabela EN 50530 invalida: espera > 1 ms, patamar > 0 e G_alto > G_baixo em todas as linhas');
 
 t_pts = [];  G_pts = [];  t = 0;
 for i = 1:height(tab)

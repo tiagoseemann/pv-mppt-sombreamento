@@ -9,13 +9,15 @@ arq = [tempname '.csv'];
 writelines(["% teste"
              "sequencia,G_baixo,G_alto,inclinacao_Wm2s,patamar_s,repeticoes,espera_s"
              "X,100,500,10,5,2,20"], arq);
+tc.addTeardown(@delete, arq);
 cen = perfil_en50530(arq, 3);
 % espera 20 s em 100; trapezio: sobe 40 s, 5 s em 500, desce 40 s, 5 s em 100 (x2)
 verifyEqual(tc, cen.t_fim, 20 + 2 * 90, 'AbsTol', 1e-9);
 verifyEqual(tc, cen.G(10), [100 100 100], 'AbsTol', 1e-9);   % espera
 verifyEqual(tc, cen.G(40), [300 300 300], 'AbsTol', 1e-6);   % meio da 1a rampa
 verifyEqual(tc, cen.G(62), [500 500 500], 'AbsTol', 1e-9);   % patamar alto
-delete(arq);
+verifyEqual(tc, cen.G(85), [300 300 300], 'AbsTol', 1e-6);   % meio da 1a descida (65 a 105 s)
+verifyEqual(tc, cen.G(200), [100 100 100], 'AbsTol', 1e-9);  % patamar final
 end
 
 function test_en50530_tabela_real(tc)
@@ -33,7 +35,9 @@ cen = cenario_constante([1000 1000 1000], 298.15, 1, 100);
 ev = table(10, 20, 3, 0.3, 1, 'VariableNames', {'t_ini', 't_fim', 'sub', 'fator', 'rampa_s'});
 cen = aplicar_sombras(cen, ev);
 verifyEqual(tc, cen.G(5), [1000 1000 1000], 'AbsTol', 1e-9);
+verifyEqual(tc, cen.G(10.5), [1000 1000 650], 'AbsTol', 1e-6);   % meio da rampa de entrada
 verifyEqual(tc, cen.G(15), [1000 1000 300], 'AbsTol', 1e-6);
+verifyEqual(tc, cen.G(25), [1000 1000 1000], 'AbsTol', 1e-9);    % depois do evento
 end
 
 function test_nuvem_afeta_todos(tc)
@@ -54,11 +58,13 @@ for hu = 0:23                                   % 15/01/2020, hora UTC
 end
 L(end + 1) = "";  L(end + 1) = "G(i): Global irradiance on the inclined plane (W/m2)";
 writelines(L, arq);
+tc.addTeardown(@delete, arq);
 cen = dia_florianopolis(arq, datetime(2020, 1, 15), 3);
 % amostra das 15:10 UTC = 12:10 local (no proprio ponto, a interpolacao e exata)
 verifyEqual(tc, cen.G(12 * 3600 + 600), 1000 * sin(pi * 6 / 13) * [1 1 1], 'RelTol', 1e-6);
 verifyEqual(tc, cen.Tamb(12 * 3600 + 600), 25 + 15 / 10 + 273.15, 'AbsTol', 1e-9);
 % o fixture e zero as 06:10 local (sin(0)); o primeiro G > 5 e a amostra das 07:10
 verifyEqual(tc, cen.t_ini_dia, 7 * 3600 + 600, 'AbsTol', 1e-6);
-delete(arq);
+% UTC 00-02 pertence ao dia local anterior: o dia termina na amostra das 20:10 local
+verifyEqual(tc, cen.t_fim, 20 * 3600 + 600, 'AbsTol', 1e-6);
 end
