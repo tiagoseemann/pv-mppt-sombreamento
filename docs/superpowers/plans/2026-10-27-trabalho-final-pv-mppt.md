@@ -1950,12 +1950,12 @@ cen = dia_florianopolis(arq, datetime(2020, 1, 15), 3);
 % amostra das 15:10 UTC = 12:10 local (no proprio ponto, a interpolacao e exata)
 verifyEqual(tc, cen.G(12 * 3600 + 600), 1000 * sin(pi * 6 / 13) * [1 1 1], 'RelTol', 1e-6);
 verifyEqual(tc, cen.Tamb(12 * 3600 + 600), 25 + 15 / 10 + 273.15, 'AbsTol', 1e-9);
-verifyEqual(tc, cen.t_ini_dia, 6 * 3600 + 600, 'AbsTol', 1e-6);   % primeiro G > 5
+verifyEqual(tc, cen.t_ini_dia, 7 * 3600 + 600, 'AbsTol', 1e-6);   % primeiro G > 5 (06:10 local tem G = 0)
 delete(arq);
 end
 ```
 
-(O PVGIS registra os valores horários em hh:10; o teste usa o mesmo formato. Rodar e ver `Passed`.)
+(O PVGIS v5.3 registra os valores horários em hh:03 UTC; o teste usa hh:10, indiferente porque o leitor interpola. Rodar e ver `Passed`.)
 
 - [ ] **Passo 4: Rodar `test_cenarios`** — Expected: 5 `Passed`.
 - [ ] **Passo 5: Baixar os dados** (`-batch "setup_path; baixar_pvgis(2020)"`), abrir o CSV e conferir cabeçalho e colunas. Escolher o dia: maior irradiação diária de janeiro de 2020 com perfil de sino (céu claro). Gravar a data (ex.: `2020-01-17`) em `resultados/dia_escolhido.txt`, que os experimentos E7 e E8 leem.
