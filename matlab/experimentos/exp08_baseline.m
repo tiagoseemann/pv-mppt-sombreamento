@@ -35,8 +35,8 @@ fprintf('completo: %.1f Wh na bateria (%.1f min de CPU)\n', rB.Eout / 3600, rB.t
 tab = table({'anterior (1d, ideal, T = 25 C)'; 'completo (2d, perdas, termico)'}, ...
     [rA.E; rB.E] / 3600, [rA.Eout; rB.Eout] / 3600, [rA.eta; rB.eta], ...
     [max(rA.T); max(rB.T)] - 273.15, ...
-    'VariableNames', {'modelo', 'E_pv_Wh', 'E_bateria_Wh', 'eta_MPPT', 'T_max_C'});
+    'VariableNames', {'modelo', 'E_pv_Wh', 'E_bat_Wh', 'eta_MPPT', 'T_max_C'});
 % Diferenca relativa ao modelo completo (positivo = o anterior superestima)
-tab.diferenca_pct = 100 * (tab.E_bateria_Wh - tab.E_bateria_Wh(2)) / tab.E_bateria_Wh(2);
+tab.dif_vs_completo_pct = 100 * (tab.E_bat_Wh - tab.E_bat_Wh(2)) / tab.E_bat_Wh(2);
 writetable(tab, fullfile(pasta_res, 'e8_baseline.csv'));
 disp(tab);

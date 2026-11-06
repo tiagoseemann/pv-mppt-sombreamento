@@ -51,7 +51,7 @@ for a = 1:size(algs, 1)
             algs{a, 2}, 100 * dlt, r.eta, r.tempo_cpu / 60);
         % Grava a tabela a cada rodada: se algo falhar depois, o que ja
         % rodou (minutos de CPU cada) nao se perde
-        tab = cell2table(linhas, 'VariableNames', {'algoritmo', 'delta_pct_Voc', 'eta', ...
+        tab = cell2table(linhas, 'VariableNames', {'algoritmo', 'delta_pct_Voc', 'eta_MPPT', ...
             'E_pv_Wh', 'E_max_Wh', 'E_bat_Wh', 'n_reinicios', 'frac_DCM', 'cpu_min'});
         writetable(tab, arq_saida);
     end
@@ -61,7 +61,7 @@ disp(tab);
 % Melhor delta de cada algoritmo (maior eta)
 for a = 1:size(algs, 1)
     sel = find(strcmp(tab.algoritmo, algs{a, 2}));
-    [~, i] = max(tab.eta(sel));
+    [~, i] = max(tab.eta_MPPT(sel));
     fprintf('Melhor %s: delta = %.1f %% Voc, eta = %.4f\n', ...
-        algs{a, 2}, tab.delta_pct_Voc(sel(i)), tab.eta(sel(i)));
+        algs{a, 2}, tab.delta_pct_Voc(sel(i)), tab.eta_MPPT(sel(i)));
 end
