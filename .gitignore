@@ -11,6 +11,8 @@ referencias/pdfs/*
 *.synctex.gz
 *.fls
 *.fdb_latexmk
+*.bbl
+*.blg
 
 # Python
 __pycache__/
