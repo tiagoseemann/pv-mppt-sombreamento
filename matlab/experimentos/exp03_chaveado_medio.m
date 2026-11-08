@@ -20,7 +20,7 @@ pasta_figs = fullfile(raiz_projeto(), 'relatorio', 'figs');
 if ~isfolder(pasta_figs), mkdir(pasta_figs); end
 
 p = parametros_painel('ztp160m');  pc = parametros_conversor(p, 12);
-casos = {1000, 'STC (CCM)'; 50, '50 W/m^2 (DCM: medio de CCM nao vale)'};
+casos = {1000, 'STC (CCM)'; 50, '50 W/m^2 (DCM: médio de CCM não vale)'};
 t_fim = 6e-3;
 
 figure('Position', [100 100 900 650], 'Theme', 'light');
@@ -72,7 +72,7 @@ for c = 1:2
     plot(rm.t * 1e3, rm.v, '--', 'LineWidth', 1.4); hold off; grid on;
     ylabel('v_{pv} [V]'); xlabel('t [ms]'); title(casos{c, 2});
     % Posicao fixa: com 'best' o exportgraphics trava (minutos) nessas curvas densas
-    legend('chaveado', 'media de 1 periodo', 'medio', 'Location', 'southwest');
+    legend('chaveado', 'média de 1 período', 'médio', 'Location', 'southwest');
     subplot(2, 2, 2 * c);
     plot(rs.t(kp) * 1e3, rs.iL(kp), 'LineWidth', 1.0); hold on;
     plot(rs.t(kp) * 1e3, ibar(kp), 'k', 'LineWidth', 0.8);

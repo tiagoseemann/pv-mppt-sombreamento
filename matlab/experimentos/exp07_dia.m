@@ -112,7 +112,7 @@ janelas = {[cen.t_ini_dia, cen.t_fim_dia] / h, (t_sombra + [-600, 600]) / h};
 marcas = {ceil(cen.t_ini_dia / h):floor(cen.t_fim_dia / h), ...   % horas inteiras
           ceil(2 * janelas{2}(1)) / 2:0.5:janelas{2}(2)};         % meias horas
 cores = lines(size(algs, 1));
-nomes = [{'maximo global'}, algs(:, 2).'];
+nomes = [{'máximo global'}, algs(:, 2).'];
 figure('Position', [100 100 1000 650], 'Theme', 'light');
 for j = 1:2
     subplot(2, 1, j); hold on;
@@ -129,7 +129,7 @@ for j = 1:2
     xlim(janelas{j}); xticks(marcas{j}); grid on;
     ylabel('P [W]'); xlabel('hora local [h]');
 end
-subplot(2, 1, 1); title(sprintf('%s, Florianopolis (modelo completo)', string(dia, 'dd/MM/yyyy')));
+subplot(2, 1, 1); title(sprintf('%s, Florianópolis (modelo completo)', string(dia, 'dd/MM/yyyy')));
 subplot(2, 1, 2);
 title(sprintf('Sombra de poste (%s-%s)', string(dia + seconds(t_sombra(1)), 'HH:mm'), ...
     string(dia + seconds(t_sombra(2)), 'HH:mm')));

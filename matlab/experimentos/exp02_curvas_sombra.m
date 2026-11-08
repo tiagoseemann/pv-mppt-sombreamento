@@ -20,7 +20,9 @@ if ~isfolder(pasta_figs), mkdir(pasta_figs); end
 p = parametros_painel('ztp160m');
 % Fatores de irradiancia por submodulo (x 1000 W/m^2); mesmo degrade do E5
 padroes = {ones(1, p.Nsub), [ones(1, p.Nsub - 1) 0.4], [1 0.6 0.3]};
-nomes = {'sem sombra', '1 submodulo a 40 %', 'degrade 100/60/30 %'};
+nomes = {'sem sombra', '1 submodulo a 40 %', 'degrade 100/60/30 %'};   % para a tabela
+% Texto da legenda (com acentos; a tabela fica com os nomes sem acento)
+rotulos = {'sem sombra', '1 submódulo a 40 %', 'degradê 100/60/30 %'};
 cores = lines(numel(padroes));
 linhas = {};
 
@@ -31,10 +33,10 @@ for n = 1:numel(padroes)
     cor = cores(n, :);
 
     subplot(1, 2, 1); hold on;
-    plot(c.V, c.I, 'Color', cor, 'LineWidth', 1.5, 'DisplayName', nomes{n});
+    plot(c.V, c.I, 'Color', cor, 'LineWidth', 1.5, 'DisplayName', rotulos{n});
 
     subplot(1, 2, 2); hold on;
-    plot(c.V, c.P, 'Color', cor, 'LineWidth', 1.5, 'DisplayName', nomes{n});
+    plot(c.V, c.P, 'Color', cor, 'LineWidth', 1.5, 'DisplayName', rotulos{n});
     % Maximo global marcado com um circulo cheio
     plot(c.Vmp, c.Pmp, 'o', 'Color', cor, 'MarkerFaceColor', cor, 'HandleVisibility', 'off');
 
@@ -51,7 +53,7 @@ end
 subplot(1, 2, 1); grid on; xlabel('V [V]'); ylabel('I [A]'); title('Curva I-V');
 legend('Location', 'southwest');
 subplot(1, 2, 2); grid on; xlabel('V [V]'); ylabel('P [W]');
-title('Curva P-V (o = maximo global)');
+title('Curva P-V (o = máximo global)');
 exportgraphics(gcf, fullfile(pasta_figs, 'e2_curvas_sombra.pdf'));
 
 tab = cell2table(linhas, 'VariableNames', {'cenario', 'fatores', 'V', 'I', 'P', 'global'});

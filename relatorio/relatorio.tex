@@ -111,24 +111,24 @@ param no primeiro máximo que encontram, que pode não ser o global. Algoritmos 
 global, como o PSO \citep{kennedy,ishaquepso}, exploram a faixa de tensão inteira, mas
 gastam energia durante a exploração.
 
-\paragraph{O trabalho anterior.} No semestre anterior, \citet{anterior} modelaram o mesmo
+\paragraph{O trabalho anterior} No semestre anterior, \citet{anterior} modelaram o mesmo
 módulo (ZTROON ZTP-160M) com um conversor buck-boost em MATLAB. Eles usaram o modelo de um
 diodo, com três parâmetros ($R_s$, $R_p$ e a corrente de saturação) ajustados pelo
 \texttt{fsolve} a partir do ponto de máxima potência, e obtiveram valores sem significado
 físico ($R_s \approx 9\times10^{-16}\,\Omega$, corrente de saturação $\approx
-4\times10^{-20}$\,A). A temperatura entrava como valor fixo (0, 25 ou 60\,°C, com
-temperatura de referência de 278\,K em vez de 298\,K) e o conversor era ideal, com
-$f_s = 2$\,kHz, $L = 1$\,mH e $C = 800\,\mu$F. Um PI de tensão e um P\&O foram ajustados por
-tentativa e testados com dois degraus de irradiância uniforme (1000 $\to$ 500 $\to$
-800\,W/m²) em cerca de 1\,s de simulação. A conclusão foi qualitativa: o P\&O ``garante que a
-potência máxima seja entregue à carga''. Não houve sombreamento parcial, modelo térmico,
+4\times10^{-20}$\,A). A temperatura entrava como valor fixo (0, 25 ou 60\,°C) e o conversor era ideal, com
+$f_s = 2$\,kHz, $L = 1$\,mH e $C = 800\,\mu$F. Um PI de tensão e um P\&O, sem método de
+projeto descrito, foram testados com dois degraus de irradiância uniforme (1000 $\to$ 500 $\to$
+800\,W/m²) em cerca de 1\,s de simulação. A conclusão foi qualitativa: a técnica implementada
+``garante que a potência máxima gerada pelo arranjo fotovoltaico seja efetivamente entregue à
+carga''. Não houve sombreamento parcial, modelo térmico,
 perdas, nem métrica de eficiência.
 
-\paragraph{Pergunta central.} \emph{Quanta energia o P\&O deixa de captar quando há
+\paragraph{Pergunta central} \emph{Quanta energia o P\&O deixa de captar quando há
 sombreamento parcial, e quanto um método de busca global (PSO) consegue recuperar,
 considerando o aquecimento do módulo e as perdas do conversor?}
 
-\paragraph{Contribuições.} A Tabela~\ref{tab:comparacao} resume o que muda em relação ao
+\paragraph{Contribuições} A Tabela~\ref{tab:comparacao} resume o que muda em relação ao
 trabalho anterior. Em particular, este trabalho:
 \begin{enumerate}[label=(\roman*)]
 \item extrai os parâmetros do modelo de dois diodos com cinco condições do datasheet, mostra
@@ -158,7 +158,7 @@ Sombra & Irradiância uniforme & 3 submódulos com \emph{bypass}; curvas com vá
 Temperatura & Fixa (0, 25, 60\,°C) & EDO de balanço de energia calibrada pelo NMOT \\
 Conversor & Ideal, médio, 2\,kHz & Médio com perdas, 20\,kHz, validado contra o chaveado;
 verificação de CCM/DCM \\
-Controle & PI e P\&O por tentativa & PI por margens em 56 casos; período do MPPT por
+Controle & PI e P\&O sem método de projeto descrito & PI por margens em 56 casos; período do MPPT por
 \citet{femia} \\
 MPPT & P\&O & P\&O, InC e PSO, com o mesmo período e a mesma malha interna \\
 Testes & 2 degraus de $G$ em $\approx$1\,s & Sombra estática; EN~50530 ($\approx$7\,h); dia
@@ -351,8 +351,8 @@ No equilíbrio, $i_L = \ipv/d$, e substituindo em \eqref{eq:medio1} resulta uma 
 segundo grau em $d$ com exatamente uma raiz positiva; sem perdas, $\Vbat/\vpv =
 d/(1-d)$. A perda de chaveamento, $P_{sw} = \tfrac12(\vpv+\Vbat)\,i_L\,(t_r+t_f)\,f_s$, entra
 só no balanço de potência. A topologia é necessária aqui: sem sombra o MPP fica em
-19,6\,V (acima dos 12\,V da bateria, modo abaixador), mas com sombra o pico global pode cair
-para 6 a 13\,V (Tabela~\ref{tab:picos}), e o conversor precisa elevar a tensão.
+19,6\,V (acima dos 12\,V da bateria, modo abaixador), mas com sombra o pico global cai para
+cerca de 11 a 13\,V nos casos simulados (Tabela~\ref{tab:picos}), e o conversor precisa elevar a tensão.
 
 O modelo médio vale em condução contínua (CCM), isto é, enquanto
 $i_L > \Delta i_L/2$, com $\Delta i_L = \vpv d/(L f_s)$. Em baixa irradiância a corrente cai,
@@ -367,7 +367,7 @@ deixam de valer.
 \draw (1.8,3) to[spst, l=$S$] (4.2,3);
 \draw (4.2,3) to[L, l_=$L$, i>^=$i_L$] (4.2,0);
 \draw (6.8,3) to[D, l_=$D$] (4.2,3);
-\draw (6.8,3) to[battery1, l_=$V_{bat}$] (6.8,0);
+\draw (6.8,0) to[battery1, l=$V_{bat}$] (6.8,3);
 \draw (0,0) -- (6.8,0);
 \node[font=\small] at (7.35,2.75) {$-$};
 \node[font=\small] at (7.35,0.25) {$+$};
@@ -404,7 +404,7 @@ parar no MPP; como ele, só enxerga a inclinação local.
 v_i &\leftarrow w\,v_i + c_1 r_1\,(p_{best,i}-x_i) + c_2 r_2\,(g_{best}-x_i), \label{eq:pso1}\\
 x_i &\leftarrow x_i + v_i, \label{eq:pso2}
 \end{align}
-com $r_1, r_2 \sim \mathcal U(0,1)$. O termo de inércia mantém o movimento, o segundo puxa
+com $r_1, r_2 \sim \mathcal U(0,1)$. O termo de inércia \citep{shi} mantém o movimento, o segundo puxa
 cada partícula para o melhor ponto que ela já viu e o terceiro para o melhor do enxame. Como
 há um só módulo, as partículas são avaliadas uma por período $T_a$. Quando todas ficam perto
 de $g_{best}$, a referência é fixada nele; se a potência medida mudar mais de 10\,\%, a busca
@@ -450,11 +450,11 @@ normal, já que as incógnitas vão de $10^{-11}$\,A a $10^{1}\,\Omega$. A corre
 é ajustada em $\log_{10}$. Os limites tornam impossível a solução degenerada do trabalho
 anterior.
 
-\paragraph{Benchmark.} O mesmo código, aplicado ao módulo KC200GT, reproduz o modelo de um
+\paragraph{Benchmark} O mesmo código, aplicado ao módulo KC200GT, reproduz o modelo de um
 diodo de \citet{villalva}: $R_s = 0{,}231\,\Omega$ contra $0{,}221\,\Omega$ publicado, e
 $I_{pv}$ e $I_0$ dentro de 1\,\% e 5\,\%.
 
-\paragraph{Dois achados.} Primeiro, \textbf{o datasheet não identifica o segundo diodo}:
+\paragraph{Dois achados} Primeiro, \textbf{o datasheet não identifica o segundo diodo}:
 fixando $I_{02}/I_{01}$ entre $10^{-2}$ e $10^{2}$, as cinco condições fecham com resíduo
 abaixo de $10^{-7}$ (Tabela~\ref{tab:ident}), mas as previsões fora do ponto de referência
 mudam. Por isso a razão é fixada por uma hipótese publicada \citep{ishaque}, e a faixa de
@@ -555,8 +555,7 @@ Quase-estático & Conversor e PI em regime a cada $T_a$; térmico por Euler com 
 oráculo a cada 1\,s & EN~50530, dia (E6--E8) & $\sim$65\,s por hora \\
 \bottomrule
 \end{tabularx}
-\caption{Hierarquia de modelos. Os custos são os medidos no desenvolvimento (decisões D15 e
-D16 do plano do trabalho).}
+\caption{Hierarquia de modelos. Os custos são os medidos no desenvolvimento.}
 \label{tab:hierarquia}
 \end{table}
 
@@ -589,8 +588,8 @@ O controlador é $C(s) = K_p\,(1 + 1/(sT_i))$, aplicado como
 $d = K_p(e + \xi/T_i)$, $e = \vpv - \Vref$, $\dot\xi = e$, com saturação em
 $[0{,}02;\,0{,}95]$ e anti-\emph{windup}. O ganho de malha inclui o atraso do PWM digital,
 $L(s) = C(s)\,[-G_{vd}(s)]\,e^{-1{,}5\,sT_s}$. A regra clássica, zero em $\omega_c/5$, falha
-para qualquer banda: a planta é plana até a ressonância LC ($\sim$240\,Hz, $\zeta \approx
-0{,}16$), que volta a cruzar 0\,dB com fase perto de $-150°$. A regra adotada varre a banda
+para qualquer banda: a planta é plana até a ressonância LC ($\sim$240\,Hz, $\zeta$ de 0,16 a 0,3 nos casos de robustez,
+0,29 no nominal), que volta a cruzar 0\,dB com fase perto de $-150°$. A regra adotada varre a banda
 $f_c$ e a posição do zero, $\omega_z = r\,\omega_c$ com $r \in \{0{,}2;\,0{,}5;\,1;\,2;\,5\}$, e
 escolhe a maior $f_c$ que mantém margem de fase (MF) $\ge 45°$ e de ganho (MG) $\ge 6$\,dB em
 \emph{todos} os casos de robustez em CCM. Com o zero acima do cruzamento ($r > 1$), o PI age
@@ -609,7 +608,8 @@ $T_a = 1{,}5\,t_{s,\max} = 31$\,ms.
 \subsection{Parâmetros do MPPT e cenários}
 \label{sec:cenarios}
 
-Todas as tensões do MPPT são escaladas pelo $V_{oc} = 22{,}60$\,V do modelo. O P\&O e o InC
+Todas as tensões do MPPT são escaladas pelo $V_{oc} = 22{,}60$\,V do modelo, o valor na grade de
+tensões de \texttt{curva\_pv} (com a grade fina do E1, 22,63\,V). O P\&O e o InC
 partem de $0{,}85\,V_{oc}$ e têm passo padrão $\delta = 1\,\%\,V_{oc}$ (ajustado no E6). A
 tolerância do InC foi um ponto delicado: com $\varepsilon = 0{,}002$\,S (valor inicial do
 projeto) o InC nunca parava, porque um passo de tensão muda $s$ em $\sim$0,09\,S. Adotou-se
@@ -623,13 +623,13 @@ as posições iniciais são $k\,V_{mp}/N_{sub}$ ($k = 1, 2, 3$) e $0{,}9\,V_{oc}
 $1\,\%\,V_{oc}$ do $g_{best}$ e reinicia quando a potência muda mais de 10\,\% (com piso de
 2\,\% de $P_{mp}$ de STC, para não reiniciar sem parar no amanhecer).
 
-\paragraph{EN 50530.} As tabelas B.2 a B.4 do anexo dinâmico da norma \citep{en50530},
+\paragraph{EN 50530} As tabelas B.2 a B.4 do anexo dinâmico da norma \citep{en50530},
 transcritas de um relatório de ensaio público \citep{tuv} e conferidas pelas durações
 impressas, geram 18 sequências de rampas trapezoidais de irradiância uniforme, de
 0,1 a 100\,W/m²/s, entre 10 e 1000\,W/m², com cerca de 7\,h no total. A temperatura fica fixa em
 25\,°C, como na norma, que separa o MPPT do efeito térmico.
 
-\paragraph{Dia em Florianópolis.} Os dados horários de irradiância no plano (inclinação de
+\paragraph{Dia em Florianópolis} Os dados horários de irradiância no plano (inclinação de
 27°, voltado ao norte), temperatura e vento vêm do PVGIS \citep{pvgis} para
 lat.\ $-27{,}595$, lon.\ $-48{,}548$. O dia escolhido foi o de maior irradiação de janeiro de
 2020 entre os dias de céu limpo (curva em sino): 26/01/2020, com 7,825\,kWh/m², pico de
@@ -746,7 +746,7 @@ denunciava a radiação contada em dobro. Corrigidas as duas coisas, $k_h$ subiu
 
 A Figura~\ref{fig:e3} compara os dois modelos após um degrau de $+0{,}02$ na razão cíclica.
 Em STC (CCM), a média móvel de um período do chaveado segue o modelo médio; no teste de
-regressão (painel genérico de 36 células) o desvio máximo ficou em $\sim$0,1\,\% na tensão e
+regressão (\texttt{test\_chaveado\_medio.m}, painel genérico de 36 células) o desvio máximo ficou em $\sim$0,1\,\% na tensão e
 $\sim$0,7\,\% na corrente, e o \emph{ripple} de $i_L$ confere com $\vpv d/(L f_s)$. Em
 50\,W/m² a corrente média ($\sim$1\,A) é menor que meio \emph{ripple} ($\sim$3\,A): o indutor
 zera a cada período (DCM) e os modelos se separam. Esse é o resultado esperado, e mostra o
@@ -784,8 +784,8 @@ mas ficou fora do escopo.
 \caption{Diagramas de Bode nos 56 casos de robustez em CCM (12 pontos de operação $\times$
 cantos de tolerância de $L$ e $C$). À esquerda, a planta $-G_{vd}$ com o atraso do PWM; à
 direita, o ganho de malha com o PI ($f_c = 57$\,Hz). Preto: caso nominal (STC, MPP,
-$L$ e $C$ nominais). Vermelho: caso que limita a MG (200\,W/m², 18,5\,V, $L\times1{,}2$;
-neste caso também $C\times1{,}2$). Cinza: demais casos. O pico perto de 240\,Hz é a
+$L$ e $C$ nominais). Vermelho: caso que limita a MG (200\,W/m², 18,5\,V, $L$ e
+$C\times1{,}2$). Cinza: demais casos. O pico perto de 240\,Hz é a
 ressonância LC; a linha pontilhada à direita marca $-180°$.}
 \label{fig:e4bode}
 \end{figure}
@@ -833,16 +833,18 @@ A hipótese quase-estática foi validada contra a EDO reduzida em cenários de 4
 um degrau de sombra. Com P\&O e InC a energia do quase-estático difere da dinâmica em
 $+0{,}13\,\%$ e $+0{,}14\,\%$. Com o PSO buscando continuamente, a diferença é de $-1{,}1\,\%$,
 e numa janela típica de 20\,s (busca de 1 a 2\,s, depois parado no $g_{best}$) cai para
-$-0{,}3\,\%$. O sinal negativo tem causa física: depois de um degrau grande de $\Vref$, o
+$-0{,}3\,\%$ (Tarefa 11; valores medidos e registrados em
+\texttt{matlab/tests/test\_quase\_estatica.m}). O sinal negativo tem causa física: depois de um degrau grande de $\Vref$, o
 transitório do PI passa por tensões \emph{entre} as partículas, perto do pico, com mais
 potência que nas pontas, e o quase-estático só conta a potência em $\Vref$. O erro é,
 portanto, \textbf{conservador contra o PSO} e só pesa enquanto ele busca.
 
 A Figura~\ref{fig:e6din} mostra um trecho de duas rampas do perfil EN~50530 no modelo
-dinâmico. Rodado também no quase-estático, o mesmo trecho dá $\etaM = 0{,}9988$ (P\&O),
-0,9949 (InC) e 0,9762 (PSO), contra 0,999, 0,995 e 0,978 no dinâmico (legenda da figura).
-P\&O e InC concordam na terceira casa; o PSO, que reinicia 22 vezes no trecho, fica
-0,2 ponto abaixo no quase-estático, no sentido conservador esperado.
+dinâmico. O mesmo trecho foi rodado também no quase-estático
+(\texttt{e6\_dinamico.csv}): $\etaM = 0{,}9988$ (P\&O), 0,9949 (InC) e 0,9762 (PSO), contra
+0,9988, 0,9949 e 0,9779 no dinâmico. P\&O e InC concordam em quatro casas; o PSO, que
+reinicia 22 vezes no trecho nos dois modelos, fica 0,2 ponto abaixo no quase-estático, no
+sentido conservador esperado.
 
 \begin{figure}[!htbp]
 \centering
@@ -998,13 +1000,13 @@ mesmo dia sem eventos, Seção~\ref{sec:e8}) para 1064\,Wh.
 Tabela~\ref{tab:eventos}, modelo completo (térmico e perdas, quase-estático). Em cima, o dia
 inteiro; embaixo, o detalhe da sombra de poste (14:00--15:30). Preto: máximo global
 disponível (oráculo); azul, laranja e amarelo: potência extraída por P\&O, InC e PSO (média
-móvel de 20 amostras). Entre 14:00 e 15:00 P\&O e InC ficam no pico local de alta tensão; entre
+móvel de $\approx$10\,s). Entre 14:00 e 15:00 P\&O e InC ficam no pico local de alta tensão; entre
 15:00 e 15:30, com sombra mais fraca e módulo quente, os três ficam abaixo do máximo global
 (Seção~\ref{sec:d17}).}
 \label{fig:e7}
 \end{figure}
 
-\paragraph{Ablação.} O mesmo dia foi simulado sem modelo térmico (células a 25\,°C, como no
+\paragraph{Ablação} O mesmo dia foi simulado sem modelo térmico (células a 25\,°C, como no
 trabalho anterior) e sem perdas no conversor (Tabela~\ref{tab:e7}). O módulo chega a
 55,6--55,7\,°C; ignorar esse aquecimento aumenta a energia disponível em 9,0\,\% e a energia
 na bateria em 8,4 a 9,0\,\%. Ignorar as perdas aumenta a energia na bateria em 11,3 a
@@ -1057,8 +1059,9 @@ $V_{mp}$ não se moveria e o efeito não existiria.
 \item \textbf{O InC congela.} Parado no MPP, o InC só sai do lugar quando a corrente varia
 mais de 0,2\,\% de $I_{sc}$ por amostra ($\approx$18\,mA em 31\,ms). As variações lentas do
 dia (sol e temperatura) nunca atingem esse limiar, e o InC fica parado enquanto o MPP se
-desloca. É por isso que, no dia real, o InC é o pior dos três, embora sob sombra estática
-seja o mais preciso dos locais.
+desloca. Esse é provavelmente o principal motivo de o InC ser o pior dos três no dia real,
+embora sob sombra estática seja o mais preciso dos locais; no E6, a temperatura constante,
+ele também perde para o P\&O, então o congelamento não é a única causa.
 \item \textbf{Sombra fraca em módulo quente engana o PSO.} Às 15:00, com sombra
 $[1\ 1\ 0{,}5]\times656$\,W/m² e módulo a 44\,°C, o pico global está em 11,6\,V e o local em
 18,9\,V. As posições iniciais do PSO, calculadas com o $V_{mp}$ de STC, ficam mal colocadas
@@ -1099,14 +1102,22 @@ $1137{,}2/1015{,}8 = 1{,}120$ ($+12\,\%$). O restante, $1238{,}4/1137{,}2 = 1{,}
 reúne a temperatura e a troca de 2 para 1 diodo. Como só a temperatura já aumenta a energia
 disponível em 9,0\,\% no E7, a contribuição do modelo de 1 diodo é praticamente nula. Isso
 é coerente com o E1: os dois modelos são ajustados aos mesmos pontos do datasheet e diferem
-pouco perto do STC, onde está quase toda a energia de um dia de verão. O erro do trabalho
-anterior não estava no número de diodos, mas no que ficou fora do modelo.
+pouco perto do STC, onde está quase toda a energia de um dia de verão. \emph{Dentro das
+simplificações isoladas aqui}, o erro não estava no número de diodos, mas no que ficou fora
+do modelo.
+
+É preciso qualificar o que o E8 mede. Ele é uma \textbf{reconstrução}: o modelo
+``anterior'' usa o ajuste de 1 diodo \emph{bem posto} deste trabalho (Tabela~\ref{tab:params}),
+para isolar o efeito das simplificações de modelagem. A extração original de
+\citet{anterior} dava cerca de 121\,W, com o MPP perto de 15\,V (Seção 4.6 daquele
+trabalho), contra 160\,W em 19,6\,V aqui; esse erro de parâmetros se somaria às
+simplificações e não está nos 21,9\,\%.
 
 % =====================================================================
 \section{Conclusão}
 \label{sec:conclusao}
 
-\paragraph{Resposta à pergunta central.} Sob sombreamento parcial estático, o P\&O pode
+\paragraph{Resposta à pergunta central} Sob sombreamento parcial estático, o P\&O pode
 perder de 21 a 58\,\% da potência disponível, conforme o padrão de sombra (eficiências de
 79\,\% a 42\,\%), porque para no pico local; o PSO recupera praticamente tudo
 ($\ge 99{,}99\,\%$). Num dia real de verão em Florianópolis com uma hora de sombra de poste e
@@ -1117,19 +1128,19 @@ um custo: sem sombra, no perfil EN~50530, o PSO perde 1,3 ponto de eficiência p
 porque reinicia a cada rampa. O PSO compensa quando há sombras que deslocam o pico global, e
 não compensa quando o céu só varia de forma uniforme.
 
-\paragraph{Sobre a modelagem.} Os resultados que mais pesam na energia não vêm dos
+\paragraph{Sobre a modelagem} Os resultados que mais pesam na energia não vêm dos
 algoritmos: ignorar o aquecimento superestima a energia em cerca de 9\,\% e ignorar as perdas
 do conversor, em cerca de 11\,\%; juntas, as simplificações do trabalho anterior dão
 $+21{,}9\,\%$. Do lado dos métodos, o trabalho mostrou que (i) o datasheet não identifica o
 segundo diodo e o gap precisa ser efetivo, (ii) $R_p(G)$ corrige uma perda de 26\,\% em baixa
 irradiância sem significado físico, (iii) a DAE com matriz de massa falha em 9 de 36 casos e a
 EDO reduzida resolve o problema, e (iv) a hierarquia chaveado $\to$ médio $\to$
-quase-estático, validada em cada degrau, permite simular as 13\,h de sol em 10 a 25\,min de
+quase-estático, validada em cada degrau, permite simular as 13\,h de sol em 9 a 23\,min de
 CPU. A modelagem
 completa também expôs limitações dos algoritmos que um modelo isotérmico esconderia
 (Seção~\ref{sec:d17}).
 
-\paragraph{Limitações.}
+\paragraph{Limitações}
 \begin{itemize}
 \item A ruptura reversa das células \citep{bishop} não é modelada; como o \emph{bypass}
 conduz muito antes da ruptura, o efeito sobre a curva é pequeno, mas o aquecimento local
@@ -1151,7 +1162,7 @@ não descreve os 13 a 32\,\% do tempo em DCM, onde as perdas de condução são 
 ablação mostra o tamanho do seu efeito, não o seu valor exato.
 \end{itemize}
 
-\paragraph{Trabalho futuro.} Reverificação periódica e posições iniciais corrigidas pela
+\paragraph{Trabalho futuro} Reverificação periódica e posições iniciais corrigidas pela
 temperatura no PSO; limiar de corrente proporcional à irradiância no InC; varredura do passo
 do InC além de 2\,\%\,$V_{oc}$; ganho escalonado no PI; modelo de DCM; temperatura por
 submódulo; e validação experimental com curvas I-V medidas do ZTP-160M.
@@ -1159,9 +1170,9 @@ submódulo; e validação experimental com curvas I-V medidas do ZTP-160M.
 \section*{Disponibilidade do código}
 O código MATLAB, os testes automatizados, os dados de entrada e as tabelas de resultados
 (\texttt{resultados/*.csv}) que geram todas as figuras e tabelas deste relatório estão no
-repositório do trabalho.
+repositório do trabalho: \url{https://github.com/tiagoseemann/pv-mppt-sombreamento}.
 
-\bibliographystyle{elsarticle-harv}
+\bibliographystyle{elsarticle-harv-pt}
 \bibliography{referencias}
 
 \end{document}

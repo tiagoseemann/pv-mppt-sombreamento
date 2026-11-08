@@ -71,15 +71,23 @@ assert(max(abs(PM - rel.PM)) < 1e-6 && max(abs(GM - rel.GM)) < 1e-6, ...
     'exp04: margens diferentes das de projeto_pi');
 
 lim = rel.ops(k_lim);
+% Rotulo do caso limitante: diz quais componentes estao fora do nominal
+if lim.fL == lim.fC
+    fator = sprintf('L e C \\times%s', strrep(sprintf('%.1f', lim.fL), '.', ','));
+else
+    fator = sprintf('L \\times%s, C \\times%s', strrep(sprintf('%.1f', lim.fL), '.', ','), ...
+        strrep(sprintf('%.1f', lim.fC), '.', ','));
+end
+rotulo_lim = sprintf('limita a MG (G = %s, %.1f V, %s)', mat2str(lim.G), lim.vpv, fator);
 subplot(2, 2, 1); grid on; ylabel('|-G_{vd}| [dB]'); title('Planta (com atraso do PWM)');
 legend(h_leg, {'nominal (STC, MPP)', ...
-    sprintf('limita a MG (G = %s, %.1f V, L x %.1f)', mat2str(lim.G), lim.vpv, lim.fL), ...
+    rotulo_lim, ...
     'demais casos'}, 'Location', 'southwest');
-subplot(2, 2, 3); grid on; ylabel('fase [graus]'); xlabel('f [Hz]');
+subplot(2, 2, 3); grid on; ylabel('fase [°]'); xlabel('f [Hz]');
 subplot(2, 2, 2); grid on; ylabel('|L| [dB]'); yline(0, 'k:');
-title(sprintf('Malha com PI: f_c = %.0f Hz, MF_{min} = %.0f graus, MG_{min} = %.1f dB', ...
+title(sprintf('Malha com PI: f_c = %.0f Hz, MF_{mín} = %.0f°, MG_{mín} = %.1f dB', ...
     ctl.fc, rel.PMmin, rel.GMmin));
-subplot(2, 2, 4); grid on; ylabel('fase [graus]'); xlabel('f [Hz]'); yline(-180, 'k:');
+subplot(2, 2, 4); grid on; ylabel('fase [°]'); xlabel('f [Hz]'); yline(-180, 'k:');
 exportgraphics(gcf, fullfile(pasta_figs, 'e4_bode.pdf'));
 
 % ---- 2) Tabela de margens: casos em CCM e casos excluidos (DCM) ----
@@ -127,9 +135,9 @@ for j = 1:2
     plot(1e3 * tl, op.vpv + dV * vl, 'LineWidth', 1.5); hold on;
     plot(1e3 * tn, xn(:, 1), '--', 'LineWidth', 1.5);
     grid on; xlabel('t [ms]'); ylabel('v_{pv} [V]');
-    title(sprintf('%s: G = %s, %.1f V, L x %.1f, C x %.1f (t_s = %.1f ms)', titulos{j}, ...
+    title(sprintf('%s: G = %s, %.1f V, L \\times %.1f, C \\times %.1f (t_s = %.1f ms)', titulos{j}, ...
         mat2str(op.G), op.vpv, op.fL, op.fC, 1e3 * rel.ts(casos_degrau(j))), 'FontSize', 9);
-    legend('linear', 'nao linear (modelo medio)', 'Location', 'southeast');
+    legend('linear', 'não linear (modelo médio)', 'Location', 'southeast');
     % Diferenca maxima entre os dois, relativa ao degrau
     vl_n = interp1(tl, op.vpv + dV * vl, tn);
     fprintf('Degrau de %.2f V, %s: max |linear - nao linear| = %.1f %% do degrau\n', ...

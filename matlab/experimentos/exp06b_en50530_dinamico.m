@@ -12,6 +12,7 @@
 % de mais de 10 % na potencia ele reinicia e testa as particulas de novo.
 % Para comparar, o mesmo trecho tambem roda no quase-estatico (com o oraculo
 % a cada Ta, como no teste do D16): as eficiencias devem ficar proximas.
+% Tabela: resultados/e6_dinamico.csv (eta nos dois modelos e reinicios do PSO).
 clear; clc; close all;
 setup_path();
 
@@ -34,12 +35,23 @@ fprintf('Trecho: %.0f s simulados, Ta = %.1f ms\n', cen.t_fim, 1e3 * ctl.Ta);
 algs = {@mppt_po, 'P&O'; @mppt_inc, 'InC'; @mppt_pso, 'PSO'};
 op = struct('termico', false);
 res = cell(size(algs, 1), 1);
+linhas = {};
 for a = 1:size(algs, 1)
     res{a} = sim_dinamica(cen, algs{a, 1}, cfg, ctl, p, pc, pt, op);
     rq = sim_quase_estatica(cen, algs{a, 1}, cfg, ctl, p, pc, pt, op);
     fprintf('%s: eta dinamico = %.4f, quase-estatico = %.4f (%.0f s de CPU no dinamico)\n', ...
         algs{a, 2}, res{a}.eta, rq.eta, res{a}.tempo_cpu);
+    % Uma linha por algoritmo: eta nos dois modelos e reinicios do PSO
+    % (NaN para P&O e InC, que nao reiniciam)
+    linhas(end + 1, :) = {algs{a, 2}, res{a}.eta, rq.eta, res{a}.nReinicios, ...
+                          rq.nReinicios, res{a}.tempo_cpu / 60}; %#ok<SAGROW>
 end
+tab = cell2table(linhas, 'VariableNames', {'algoritmo', 'eta_dinamico', ...
+    'eta_quase_estatico', 'n_reinicios_dinamico', 'n_reinicios_quase_estatico', 'cpu_min_dinamico'});
+pasta_res = fullfile(raiz_projeto(), 'resultados');
+if ~isfolder(pasta_res), mkdir(pasta_res); end
+writetable(tab, fullfile(pasta_res, 'e6_dinamico.csv'));
+disp(tab);
 
 % ---- Figura: irradiancia em cima, potencia embaixo ----
 % r.P e o produto das medias de v e I na janela de medida de cada Ta (o
@@ -55,7 +67,7 @@ for k = 1:numel(tt)
 end
 plot(tt, Gt, 'k', 'LineWidth', 1.2); grid on;
 ylabel('G [W/m^2]'); xlim([0 cen.t_fim]);
-title('EN 50530, B.3: 300 \leftrightarrow 1000 W/m^2 a 50 W/m^2/s (modelo dinamico, 25 C)');
+title('EN 50530, B.3: 300 \leftrightarrow 1000 W/m^2 a 50 W/m^2/s (modelo dinâmico, 25 °C)');
 subplot(3, 1, [2 3]); hold on;
 hl = plot(res{1}.t, res{1}.Pg, 'k', 'LineWidth', 1.5);
 for a = 1:size(algs, 1)
@@ -63,7 +75,7 @@ for a = 1:size(algs, 1)
 end
 grid on; xlim([0 cen.t_fim]); xlabel('t [s]'); ylabel('P_{pv} [W]');
 nomes = cell(1, size(algs, 1) + 1);
-nomes{1} = 'maximo global';
+nomes{1} = 'máximo global';
 for a = 1:size(algs, 1)
     nomes{a + 1} = sprintf('%s (\\eta = %.3f)', algs{a, 2}, res{a}.eta);
 end

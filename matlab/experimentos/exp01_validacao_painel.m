@@ -45,7 +45,7 @@ figure('Position', [100 100 600 400], 'Theme', 'light');
 plot(v.G, 100 * eta_rel(1, :), 'o--', v.G, 100 * eta_rel(2, :), 's-', 'LineWidth', 1.3);
 grid on; xlabel('G [W/m^2]'); ylabel('\eta(G) / \eta(STC) [%]');
 legend(modelo, 'Location', 'southeast');
-title('ZTP-160M: eficiencia relativa em baixa irradiancia');
+title('ZTP-160M: eficiência relativa em baixa irradiância');
 exportgraphics(gcf, fullfile(pasta_figs, 'e1_eficiencia_relativa.pdf'));
 
 % ---- Identificabilidade do 2o diodo (decisao D9) ----
@@ -59,5 +59,5 @@ writetable(tab_id, fullfile(pasta_res, 'e1_identificabilidade.csv'));
 figure('Position', [100 100 600 400], 'Theme', 'light');
 semilogx(tab_id.razao_I02_I01, 100 * tab_id.eta200_rel, 's-', 'LineWidth', 1.3);
 grid on; xlabel('I_{02} / I_{01}'); ylabel('\eta(200) / \eta(STC) [%]');
-title('ZTP-160M: eficiencia relativa em 200 W/m^2 x razao I_{02}/I_{01}');
+title('ZTP-160M: eficiência relativa em 200 W/m^2 \times razão I_{02}/I_{01}');
 exportgraphics(gcf, fullfile(pasta_figs, 'e1_identificabilidade.pdf'));
