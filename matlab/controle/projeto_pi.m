@@ -17,9 +17,6 @@ function [ctl, rel] = projeto_pi(p, pc, razoes_zero)
 %   rel.ts_max, rel.k_ts_max : pior acomodacao e o indice do caso em rel.ops
 %   rel.ops, rel.ops_dcm : casos verificados (CCM) e excluidos (DCM), com
 %                          campos vpv, G, T, fL, fC (fatores de L e C)
-%   rel.tabela : todos os candidatos (fc, r, pior MF, pior MG, ts no ponto
-%                nominal, pior ts; o pior ts so e calculado quando as
-%                margens passam, senao NaN)
 %
 %   Malha de tensao: L(s) = C(s) * (-G_vd(s)) * exp(-s*atraso), com
 %   C(s) = Kp (1 + 1/(s Ti)). O sinal "-" vem da convencao d~ = Kp*(e + xi/Ti)
@@ -44,7 +41,7 @@ function [ctl, rel] = projeto_pi(p, pc, razoes_zero)
 %     cruzamento fica bem abaixo da ressonancia com |L| << 1 no pico LC.
 %     A fase em wc e ~ -90 graus (integrador), dai MF alta. E a escolha
 %     padrao para uma planta LC pouco amortecida.
-%   - A varredura inclui r = 0.2 para comparacao (aparece em rel.tabela).
+%   - A varredura inclui r = 0.2 para comparacao (sozinho ele e inviavel; ver test_controle).
 %   - Entre os candidatos que passam, fica o de MAIOR fc (empate: maior MF):
 %     banda maior = malha mais rapida, o que deixa o MPPT dar passos mais
 %     curtos; mas o ganho da planta muda muito com G e vpv (r_pv do painel),
@@ -115,8 +112,6 @@ sysn = sys_ccm{1};
 
 ctl = [];
 fcs = logspace(log10(5), log10(pc.fs / 10), 80);    % bandas candidatas [Hz]
-tabela = zeros(numel(fcs) * numel(razoes_zero), 6);
-linha = 0;
 for i = 1:numel(fcs)
     fc = fcs(i);
     wc = 2 * pi * fc;
@@ -133,7 +128,6 @@ for i = 1:numel(fcs)
             PM(k) = m.PM;  GM(k) = m.GM;
         end
         cand = struct('Kp', Kp, 'Ti', Ti, 'fc', fc, 'r', r);
-        [~, ~, ts_nom] = resposta_degrau_mf(sysn, cand, t_fim);
 
         % Acomodacao em todos os casos (so se as margens passaram: e o
         % calculo mais caro). Femia vale no PIOR caso: o P&O e o PSO operam
@@ -148,8 +142,6 @@ for i = 1:numel(fcs)
             end
             ts_pior = max(ts);
         end
-        linha = linha + 1;
-        tabela(linha, :) = [fc, r, min(PM), min(GM), ts_nom, ts_pior];
 
         passa = margens_ok && ts_pior < ts_max_limite;
         % fcs e crescente: substitui o escolhido se a banda for maior, ou se
@@ -162,8 +154,6 @@ for i = 1:numel(fcs)
         end
     end
 end
-rel_tabela = array2table(tabela, 'VariableNames', ...
-    {'fc_Hz', 'r', 'PMmin', 'GMmin', 'ts_nominal', 'ts_max'});
 if isempty(ctl)
     error('projeto_pi:inviavel', ...
         'Nenhum par (fc, r) atende MF >= 45, MG >= 6 dB e ts < %g s.', ts_max_limite);
@@ -177,7 +167,6 @@ end
 % arredondado para cima em ms.
 ctl.Ta = 1e-3 * ceil(1.5 * rel.ts_max / 1e-3);
 rel.ops = ops_ccm;  rel.ops_dcm = ops_dcm;
-rel.tabela = rel_tabela;
 end
 
 
