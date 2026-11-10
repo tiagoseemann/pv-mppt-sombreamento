@@ -14,6 +14,20 @@
 
 ---
 
+## Alteração de 10/11/2026 (decisão do usuário, antes de executar)
+
+A licença trial do MATLAB vence em 12/11 e o usuário decidiu **não rodar os experimentos de
+novo**. Consequências:
+
+- **Saem do plano:** Tarefas 1–3 (referência e comparador), 6 (experimentos longos) e 7 (só o
+  Passo 4 continua: conferir nomes de função citados no relatório).
+- **Só achados de risco baixo são aplicados** (mudanças que não alteram nenhum número). Os de
+  risco médio ficam registrados como "não aplicado: exige rodar experimentos" no relato.
+- **Rede de segurança:** `run_tests` antes (base) e depois de cada lote.
+- `resultados/`, as figuras e o relatório não mudam.
+
+---
+
 ## Convenções usadas em todas as tarefas
 
 - Raiz do repositório: `/Users/tiagoseemann/Projetos/TrabalhoModelagem` (todos os comandos partem dela).
