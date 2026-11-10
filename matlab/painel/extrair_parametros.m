@@ -11,7 +11,7 @@ function [p, info] = extrair_parametros(ds, modelo, razao)
 %         incognitas x = [Ipv, log10 I01, Rs, Rp, Eg]  (Rs, Rp do MODULO)
 %         condicoes: Isc, Voc, MPP, dP/dV = 0 no MPP, coef. Kv de Voc
 %   5 condicoes e 5 incognitas: o ajuste e um sistema de equacoes resolvido
-%   por minimos quadrados (residuo final ~ 0).
+%   com fsolve (Optimization Toolbox); residuo final ~ 0.
 %   Todas as condicoes sao residuos EXPLICITOS de kcl_modulo nos pontos dados.
 %
 %   Por que fixar I02/I01 no '2d': o datasheet nao identifica I02 separadamente.
@@ -25,7 +25,7 @@ function [p, info] = extrair_parametros(ds, modelo, razao)
 %   da a lei T^3 (o KC200GT '1d' da Eg ~ 0,91 eV).
 %
 %   p    : struct no formato de parametros_painel (valores POR CELULA)
-%   info : saida do levenberg_marquardt (residuo, residuos r, iteracoes)
+%   info : saida do fsolve (residuo = norma dos residuos, r, iter)
 %          mais info.convergiu = (residuo < 1e-6); avisa se nao convergiu
 
 if nargin < 2, modelo = '2d'; end
@@ -43,22 +43,24 @@ switch modelo
         error('extrair_parametros:modelo', 'Modelo deve ser 1d ou 2d');
 end
 
-% Limites das incognitas:
-%   Ipv >= Isc: no curto, Isc = Ipv menos as perdas nos diodos e em Rp,
-%       entao Ipv nunca e menor que Isc (e fica no maximo ~5 % acima).
-%   log10 I01: a corrente de saturacao varia muitas decadas, por isso e
-%       ajustada em log10 (o otimizador ve variaveis da mesma ordem);
-%       1e-14 a 1e-4 A cobre modulos de silicio com folga.
-%   Rs do modulo: 0,1 mohm a 2 ohm; Rp do modulo: 10 ohm a 10 kohm
-%       (faixas fisicas de modulos comerciais).
-%   Eg: janela de 0,9 a 1,6 eV em torno do gap do silicio (1,12 eV).
-%     Ipv          log10 I01  Rs [ohm]  Rp [ohm]  Eg [eV]
-x0 = [ds.Isc;        -8;       0.2;      300;      1.12];
-lb = [ds.Isc;        -14;      1e-4;     10;       0.9];
-ub = [1.05 * ds.Isc;  -4;      2;        1e4;      1.6];
+% Variaveis do fsolve: y = [Ipv, log10 I01, log10 Rs, log10 Rp, Eg].
+% O fsolve NAO tem limites. Sem eles, no ZTP-160M ele divergia (Rp indo
+% para -4e12 ohm e residuo parado em 4e-2). Resolvemos em log10 de Rs e Rp:
+% 10^y e sempre positivo, entao a divergencia para valores negativos some.
+% I01 ja era ajustada em log10 porque varia muitas decadas (o solver ve
+% variaveis da mesma ordem de grandeza).
+%     Ipv   log10 I01  log10 Rs [ohm]  log10 Rp [ohm]  Eg [eV]
+y0 = [ds.Isc; -8;      log10(0.2);     log10(300);     1.12];
+fun = @(y) residuos_extracao([y(1); y(2); 10^y(3); 10^y(4); y(5)], ds, p0);
 
-fun = @(x) residuos_extracao(x, ds, p0);
-[x, info] = levenberg_marquardt(fun, x0, lb, ub);
+% Tolerancias apertadas: o sistema 5x5 tem solucao exata (residuo ~ 0)
+opcoes = optimoptions('fsolve', 'Display', 'off', ...
+    'FunctionTolerance', 1e-14, 'StepTolerance', 1e-14, ...
+    'OptimalityTolerance', 1e-14, 'MaxIterations', 500, ...
+    'MaxFunctionEvaluations', 5000);
+[y, r, ~, saida] = fsolve(fun, y0, opcoes);
+x = [y(1); y(2); 10^y(3); 10^y(4); y(5)];
+info = struct('iter', saida.iterations, 'residuo', norm(r), 'r', r);
 p = aplicar_incognitas(x, p0);
 p = rmfield(p, 'razao');              % campo auxiliar, so usado no ajuste
 

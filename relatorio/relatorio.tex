@@ -166,8 +166,7 @@ real com sombras \\
 Resultado & Qualitativo & Eficiência de rastreamento, energia na bateria, ablação \\
 \bottomrule
 \end{tabularx}
-\caption{Do trabalho anterior para este. O módulo (ZTP-160M) e a ferramenta (MATLAB, aqui
-sem \emph{toolboxes}) são os mesmos, o que permite usar o trabalho anterior como linha de
+\caption{Do trabalho anterior para este. O módulo (ZTP-160M) e a ferramenta (MATLAB) são os mesmos, o que permite usar o trabalho anterior como linha de
 base (Seção~\ref{sec:e8}).}
 \label{tab:comparacao}
 \end{table}
@@ -425,9 +424,9 @@ interessa ao usuário.
 \section{Modelagem e métodos numéricos}
 \label{sec:metodos}
 
-Todo o código usa só o núcleo do MATLAB, sem as \emph{toolboxes} de Otimização e de
-Controle. Por isso o ajuste por mínimos quadrados, a resposta em frequência e o cálculo de
-margens foram implementados à mão, cada um com testes automatizados.
+O código usa o núcleo do MATLAB e, de toda a \emph{toolbox} de Otimização, só o \texttt{fsolve},
+na extração de parâmetros. Não usa a \emph{toolbox} de Controle: por isso a resposta em frequência
+e o cálculo de margens foram implementados à mão, cada um com testes automatizados.
 
 \subsection{Extração de parâmetros: um problema bem posto e um mal posto}
 \label{sec:extracao}
@@ -444,11 +443,11 @@ I(0) = I_{sc},\quad I(V_{oc}) = 0,\quad I(V_{mp}) = I_{mp},\quad
 \label{eq:condicoes}
 \end{equation}
 A derivada $dI/dV$ sai por diferenciação implícita de \eqref{eq:2d}. O sistema $5\times5$ é
-resolvido por Levenberg--Marquardt \citep{marquardt} com limites (cada passo é projetado de
-volta na caixa de valores físicos) e com as variáveis normalizadas pela diagonal da matriz
-normal, já que as incógnitas vão de $10^{-11}$\,A a $10^{1}\,\Omega$. A corrente de saturação
-é ajustada em $\log_{10}$. Os limites tornam impossível a solução degenerada do trabalho
-anterior.
+resolvido pelo \texttt{fsolve}, já que as incógnitas vão de $10^{-11}$\,A a $10^{1}\,\Omega$. A corrente de saturação
+$I_{01}$, $R_s$ e $R_p$ são ajustados em $\log_{10}$: o \texttt{fsolve} não aceita limites e,
+com $R_p$ em valor direto, ele divergia para valores negativos no ZTP-160M; em $\log_{10}$ essas
+variáveis ficam sempre positivas. A solução degenerada do trabalho anterior vinha de ter menos
+condições que incógnitas; aqui as cinco condições determinam as cinco incógnitas.
 
 \paragraph{Benchmark} O mesmo código, aplicado ao módulo KC200GT, reproduz o modelo de um
 diodo de \citet{villalva}: $R_s = 0{,}231\,\Omega$ contra $0{,}221\,\Omega$ publicado, e
@@ -456,7 +455,7 @@ $I_{pv}$ e $I_0$ dentro de 1\,\% e 5\,\%.
 
 \paragraph{Dois achados} Primeiro, \textbf{o datasheet não identifica o segundo diodo}:
 fixando $I_{02}/I_{01}$ entre $10^{-2}$ e $10^{2}$, as cinco condições fecham com resíduo
-abaixo de $10^{-7}$ (Tabela~\ref{tab:ident}), mas as previsões fora do ponto de referência
+abaixo de $10^{-12}$ (Tabela~\ref{tab:ident}), mas as previsões fora do ponto de referência
 mudam. Por isso a razão é fixada por uma hipótese publicada \citep{ishaque}, e a faixa de
 previsões vira a incerteza do modelo (Seção~\ref{sec:val_painel}). Segundo, \textbf{o gap
 precisa ser efetivo}: com $E_g = 1{,}12$\,eV (silício), o modelo do KC200GT dá
