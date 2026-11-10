@@ -1,7 +1,7 @@
 function r = sim_quase_estatica(cen, alg, cfg, ctl, p, pc, pt, op)
 %SIM_QUASE_ESTATICA Simulacao rapida (horas/dias): conversor + PI assentados a cada Ta.
 %   r = sim_quase_estatica(cen, alg, cfg, ctl, p, pc, pt, op)
-%   (mesma interface de sim_dinamica)
+%   (mesma assinatura de sim_dinamica)
 %
 %   cen : cenario: cen.G(t) (1 x Nsub), cen.Tamb(t), cen.vw(t), cen.t_fim
 %   alg : algoritmo de MPPT, [Vref, e] = alg(V, I, e, cfg); cfg = config_mppt(p)
@@ -18,8 +18,6 @@ function r = sim_quase_estatica(cen, alg, cfg, ctl, p, pc, pt, op)
 %   op.n_log      : guarda as series r.t, r.V, ... so a cada n_log periodos
 %                   (padrao 1; economiza memoria em simulacoes de horas).
 %                   Os totais (E, Eg, ...) somam TODOS os periodos.
-%   op.V0         : aceito por compatibilidade com sim_dinamica, mas SEM
-%                   EFEITO: aqui o PI ja chega em V_ref no 1o periodo.
 %
 %   O QUE E "QUASE-ESTATICO": a dinamica eletrica (ressonancia LC, ~240 Hz)
 %   e a malha do PI (t_s ~ 20 ms) sao bem mais rapidas que o periodo do
@@ -276,15 +274,4 @@ if verifica_ccm(V, eq.d, eq.iL, pc)
 else
     situacao = 'dcm';
 end
-end
-
-function [Pg, cache] = oraculo_com_cache(G, T, p, cache)
-% Mesmo cache de sim_dinamica: oraculo_pmax so e recalculado se G ou T
-% mudaram (0,01 K muda Pmp em ~4e-5, desprezivel).
-if ~isequal(G, cache.G) || abs(T - cache.T) > 0.01
-    cache.Pg = oraculo_pmax(G, T, p);
-    cache.G = G;
-    cache.T = T;
-end
-Pg = cache.Pg;
 end

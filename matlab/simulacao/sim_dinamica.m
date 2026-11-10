@@ -210,18 +210,6 @@ r.nAvisosNewton = nAvisos;
 r.tempo_cpu = toc;
 end
 
-function [Pg, cache] = oraculo_com_cache(G, T, p, cache)
-% oraculo_pmax so e recalculado se G ou T mudaram (0,01 K muda Pmp em
-% ~4e-5, desprezivel). Com G constante, a ponta final de um intervalo e a
-% inicial do seguinte caem no cache.
-if ~isequal(G, cache.G) || abs(T - cache.T) > 0.01
-    cache.Pg = oraculo_pmax(G, T, p);
-    cache.G = G;
-    cache.T = T;
-end
-Pg = cache.Pg;
-end
-
 function ym = media_janela(tt, y, t_ini)
 % Media no tempo de y(t) em [t_ini, tt(end)] (os passos do ode15s nao sao
 % uniformes, entao a media simples das amostras pesaria errado)
@@ -300,8 +288,7 @@ dR_dT = (residuo_painel(z, x(1), G, x(4) + hT, m.p) ...
        - residuo_painel(z, x(1), G, x(4) - hT, m.p)) / (2 * hT);
 dz_dT = -(Jz \ dR_dT);
 
-[~, ~, modo] = lei_pi(x(1), x(3), Vref, m.ctl, m.pc);
-d = lei_pi(x(1), x(3), Vref, m.ctl, m.pc, modo);
+[d, ~, modo] = lei_pi(x(1), x(3), Vref, m.ctl, m.pc);
 di = conversor_medio_rhs(x(1), x(2), I, d, m.pc);
 bloqueado = x(2) <= 0 && di(2) < 0;
 f0 = derivadas(t, x, I, Vref, m, modo, bloqueado);
