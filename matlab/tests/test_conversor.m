@@ -4,8 +4,8 @@ tests = functiontests(localfunctions);
 end
 
 function setupOnce(tc)
-tc.TestData.p = parametros_painel('generico');
-tc.TestData.pc = parametros_conversor(tc.TestData.p, 12);
+% Conversor projetado para o painel generico e bateria de 12 V
+tc.TestData.pc = parametros_conversor(parametros_painel('generico'), 12);
 end
 
 function test_ganho_ideal(tc)
@@ -17,11 +17,12 @@ verifyEqual(tc, eq.eta, 1, 'AbsTol', 1e-9);
 end
 
 function test_balanco_de_energia(tc)
-% Potencia de entrada = potencia na bateria + perdas de conducao; eta fica entre 0,85 e 1.
+% Potencia de entrada = potencia na bateria + perdas de conducao, e Pout = Pin - Pcond - Psw; eta fica entre 0,85 e 1.
 pc = tc.TestData.pc;
 v = 18;  i = 7.7;
 eq = equilibrio_conversor(v, i, pc);
 verifyEqual(tc, v * i, (1 - eq.d) * eq.iL * pc.Vbat + eq.Pcond, 'RelTol', 1e-9);
+verifyEqual(tc, eq.Pout, v * i - eq.Pcond - eq.Psw, 'RelTol', 1e-9);
 verifyLessThan(tc, eq.eta, 1);
 verifyGreaterThan(tc, eq.eta, 0.85);
 end
@@ -43,7 +44,7 @@ eqB = equilibrio_conversor(17, 0.25, pc);          % G ~ 30 W/m^2
 verifyFalse(tc, verifica_ccm(17, eqB.d, eqB.iL, pc));
 end
 
-function test_fechada_igual_fzero(tc)
+function test_d_fechado_satisfaz_equilibrio(tc)
 % O d da formula fechada satisfaz a equacao de equilibrio original (sem multiplicar por d).
 pc = tc.TestData.pc;
 pontos = [18 7.7; 18 1e-3; 5 8; 25 2];
@@ -75,11 +76,4 @@ function test_dimensionamento(tc)
 pz = parametros_conversor(parametros_painel('ztp160m'), 12);
 verifyEqual(tc, pz.L, 57.5e-6, 'RelTol', 0.05);
 verifyEqual(tc, pz.C, 1.298e-3, 'RelTol', 0.05);
-end
-
-function test_pout_igual_pin_menos_perdas(tc)
-% Pout = Pin - Pcond - Psw.
-pc = tc.TestData.pc;
-eq = equilibrio_conversor(18, 7.7, pc);
-verifyEqual(tc, eq.Pout, 18 * 7.7 - eq.Pcond - eq.Psw, 'RelTol', 1e-9);
 end
