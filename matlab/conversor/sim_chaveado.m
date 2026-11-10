@@ -8,9 +8,7 @@ function r = sim_chaveado(t_fim, dfun, G, T, p, pc, x0)
 %   p, pc : parametros do painel e do conversor
 %   x0    : estado MEDIO inicial [v_pv; i_L] (o mesmo usado no modelo medio)
 %
-%   Saida: r.t, r.v (v_pv), r.iL e r.q. r.v(k) e r.iL(k) sao o estado no
-%   instante r.t(k). r.q(k) e a fracao do passo k com a chave ligada
-%   (1 = ligada o passo todo, 0 = desligada, entre 0 e 1 no passo da comutacao).
+%   Saida: r.t, r.v (v_pv) e r.iL; r.v(k) e r.iL(k) sao o estado no instante r.t(k).
 %
 %   Diferente do modelo medio, aqui as duas topologias se alternam de fato:
 %     chave ligada:    L di/dt = v_pv - iL*(rL + Ron),        C dv/dt = i_pv - iL
@@ -25,7 +23,7 @@ passos_por_periodo = 200;
 dt = pc.Ts / passos_por_periodo;
 n = round(t_fim / dt);
 r.t = (0:n - 1).' * dt;
-r.v = zeros(n, 1);  r.iL = zeros(n, 1);  r.q = zeros(n, 1);
+r.v = zeros(n, 1);  r.iL = zeros(n, 1);
 
 % Condicao inicial: x0 e a media do periodo, mas o chaveado comeca no instante
 % em que a chave liga. Nesse instante i_L esta no VALE (vai subir durante d*Ts)
@@ -84,7 +82,5 @@ for k = 1:n
     % Euler explicito; o diodo bloqueia corrente negativa (i_L >= 0)
     v = v + dv * dt;
     iL = max(iL + di * dt, 0);
-
-    r.q(k) = f;
 end
 end

@@ -17,7 +17,6 @@ clear; clc; close all;
 setup_path();
 
 pasta_figs = fullfile(raiz_projeto(), 'relatorio', 'figs');
-if ~isfolder(pasta_figs), mkdir(pasta_figs); end
 
 p = parametros_painel('ztp160m');  pc = parametros_conversor(p, 12);
 casos = {1000, 'STC (CCM)'; 50, '50 W/m^2 (DCM: médio de CCM não vale)'};

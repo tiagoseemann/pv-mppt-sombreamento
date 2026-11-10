@@ -14,8 +14,6 @@ setup_path();
 
 pasta_res = fullfile(raiz_projeto(), 'resultados');
 pasta_figs = fullfile(raiz_projeto(), 'relatorio', 'figs');
-if ~isfolder(pasta_res), mkdir(pasta_res); end
-if ~isfolder(pasta_figs), mkdir(pasta_figs); end
 
 p = parametros_painel('ztp160m');
 % Fatores de irradiancia por submodulo (x 1000 W/m^2); mesmo degrade do E5

@@ -6,11 +6,9 @@
 clear; clc; close all;
 setup_path();
 
-% Pastas de saida (criadas se ainda nao existirem)
+% Pastas de saida (versionadas no repositorio)
 pasta_res = fullfile(raiz_projeto(), 'resultados');
 pasta_figs = fullfile(raiz_projeto(), 'relatorio', 'figs');
-if ~isfolder(pasta_res), mkdir(pasta_res); end
-if ~isfolder(pasta_figs), mkdir(pasta_figs); end
 
 ds = datasheet_painel('ztp160m');
 v = validar_painel('ztp160m');

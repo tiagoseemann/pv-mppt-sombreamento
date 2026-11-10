@@ -17,7 +17,7 @@ clear; clc; close all;
 setup_path();
 
 pasta_figs = fullfile(raiz_projeto(), 'relatorio', 'figs');
-if ~isfolder(pasta_figs), mkdir(pasta_figs); end
+pasta_res = fullfile(raiz_projeto(), 'resultados');
 
 p = parametros_painel('ztp160m');  pc = parametros_conversor(p, 12);
 ds = datasheet_painel('ztp160m');  pt = parametros_termicos(ds);
@@ -48,8 +48,6 @@ for a = 1:size(algs, 1)
 end
 tab = cell2table(linhas, 'VariableNames', {'algoritmo', 'eta_dinamico', ...
     'eta_quase_estatico', 'n_reinicios_dinamico', 'n_reinicios_quase_estatico', 'cpu_min_dinamico'});
-pasta_res = fullfile(raiz_projeto(), 'resultados');
-if ~isfolder(pasta_res), mkdir(pasta_res); end
 writetable(tab, fullfile(pasta_res, 'e6_dinamico.csv'));
 disp(tab);
 

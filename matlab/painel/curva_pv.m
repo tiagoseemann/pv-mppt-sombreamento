@@ -13,17 +13,15 @@ if nargin < 4, nPts = 600; end
 Voc_est = p.Nsub * p.Ncel * 0.75;
 V = linspace(0, Voc_est, nPts);
 I = zeros(size(V));
-Vj = zeros(p.Nsub, nPts);
 
 z = [];
 for n = 1:nPts
     [I(n), s] = painel_sombreado(V(n), G, T, p, z);
     z = s.z;                      % warm start para o proximo ponto
-    Vj(:, n) = s.Vj;
 end
 
 ok = I >= 0;                      % descarta a regiao alem de Voc
-c.V = V(ok);  c.I = I(ok);  c.P = c.V .* c.I;  c.Vj = Vj(:, ok);
+c.V = V(ok);  c.I = I(ok);  c.P = c.V .* c.I;
 
 [c.Pmp, k] = max(c.P);
 c.Vmp = c.V(k);
