@@ -41,7 +41,8 @@ function [ctl, rel] = projeto_pi(p, pc, razoes_zero)
 %     cruzamento fica bem abaixo da ressonancia com |L| << 1 no pico LC.
 %     A fase em wc e ~ -90 graus (integrador), dai MF alta. E a escolha
 %     padrao para uma planta LC pouco amortecida.
-%   - A varredura inclui r = 0.2 para comparacao (sozinho ele e inviavel; ver test_controle).
+%   - A varredura inclui r = 0.2 para comparacao (sozinho ele e inviavel;
+%     ver test_controle).
 %   - Entre os candidatos que passam, fica o de MAIOR fc (empate: maior MF):
 %     banda maior = malha mais rapida, o que deixa o MPPT dar passos mais
 %     curtos; mas o ganho da planta muda muito com G e vpv (r_pv do painel),
