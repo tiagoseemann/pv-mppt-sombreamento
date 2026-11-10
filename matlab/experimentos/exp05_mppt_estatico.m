@@ -14,7 +14,6 @@ clear; clc; close all;
 setup_path();
 
 pasta_res = fullfile(raiz_projeto(), 'resultados');
-if ~isfolder(pasta_res), mkdir(pasta_res); end
 
 p = parametros_painel('ztp160m');  cfg = config_mppt(p);
 padroes = {[1 1 1], [1 1 0.4], [1 0.6 0.3], [1 0.3 0.3], [0.8 0.8 0.2], [1 0.5 0.5]};
