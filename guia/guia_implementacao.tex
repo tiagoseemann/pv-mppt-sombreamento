@@ -1,0 +1,168 @@
+% Guia de implementacao do trabalho final (DAS5109): explicacao passo a passo,
+% com equacoes, diagramas e os trechos reais do codigo MATLAB.
+% Compilar:  cd guia && tectonic -X compile guia_implementacao.tex
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{fontspec}
+\usepackage[brazil]{babel}
+\usepackage{microtype}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+\usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,calc,backgrounds}
+\usepackage[american]{circuitikz}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{needspace}
+\usepackage[hidelinks]{hyperref}
+
+\graphicspath{{figs/}{../relatorio/figs/}}
+
+\definecolor{azul}{HTML}{1F5FA8}
+\definecolor{verde}{HTML}{2E8B57}
+\definecolor{vermelho}{HTML}{D1495B}
+\definecolor{amarelo}{HTML}{EDAE49}
+\definecolor{cinza}{HTML}{555555}
+\definecolor{roxo}{HTML}{6A4C93}
+
+\titleformat{\section}{\Large\bfseries\color{azul}}{\thesection}{0.8em}{}
+\titleformat{\subsection}{\large\bfseries\color{azul!80!black}}{\thesubsection}{0.7em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries}{\thesubsubsection}{0.6em}{}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{cinza}DAS5109 -- Guia de implementa\c{c}\~ao do trabalho final}
+\fancyhead[R]{\small\color{cinza}\thepage}
+\renewcommand{\headrulewidth}{0.3pt}
+
+\setlist{itemsep=2pt,topsep=4pt}
+\setlength{\emergencystretch}{2em}
+\captionsetup{font=small,labelfont=bf}
+
+% ---------- caixas didaticas ----------
+\newtcolorbox{intuicao}[1][]{enhanced,breakable,colback=verde!6,colframe=verde,
+  fonttitle=\bfseries,title={Intui\c{c}\~ao#1},boxrule=0.6pt,arc=2pt,left=6pt,right=6pt}
+\newtcolorbox{atencao}[1][]{enhanced,breakable,colback=vermelho!6,colframe=vermelho,
+  fonttitle=\bfseries,title={Aten\c{c}\~ao#1},boxrule=0.6pt,arc=2pt,left=6pt,right=6pt}
+\newtcolorbox{resumo}[1][]{enhanced,breakable,colback=azul!5,colframe=azul,
+  fonttitle=\bfseries,title={Em resumo#1},boxrule=0.6pt,arc=2pt,left=6pt,right=6pt}
+\newtcolorbox{logica}[1][]{enhanced,breakable,colback=roxo!6,colframe=roxo,
+  fonttitle=\bfseries,title={L\'ogica passo a passo#1},boxrule=0.6pt,arc=2pt,left=6pt,right=6pt}
+\newtcolorbox{resultado}[1][]{enhanced,breakable,colback=amarelo!10,colframe=amarelo!80!black,
+  fonttitle=\bfseries,title={Resultado#1},boxrule=0.6pt,arc=2pt,left=6pt,right=6pt}
+
+% ---------- codigo MATLAB ----------
+\lstdefinestyle{matlabcod}{
+  language=Matlab,
+  basicstyle=\ttfamily\scriptsize,
+  keywordstyle=\color{azul}\bfseries,
+  commentstyle=\color{verde!60!black}\itshape,
+  stringstyle=\color{vermelho},
+  numbers=left, numberstyle=\tiny\color{cinza}, numbersep=6pt,
+  frame=single, rulecolor=\color{cinza!50},
+  breaklines=true, breakatwhitespace=false,
+  postbreak=\mbox{\textcolor{cinza}{$\hookrightarrow$}\space},
+  columns=fullflexible, keepspaces=true, showstringspaces=false,
+  xleftmargin=14pt, aboveskip=6pt, belowskip=4pt}
+\lstset{style=matlabcod}
+
+% \codigo{arquivo}{primeira}{ultima}{legenda}{rotulo}: trecho real do arquivo
+\newcommand{\codigo}[5]{%
+  \lstinputlisting[style=matlabcod,linerange={#2-#3},firstnumber=#2,label={#5},
+    caption={\texttt{\detokenize{#1}}, linhas #2 a #3: #4}]{../matlab/#1}}
+% \codigointeiro{arquivo}{legenda}{rotulo}: arquivo inteiro
+\newcommand{\codigointeiro}[3]{%
+  \lstinputlisting[style=matlabcod,label={#3},
+    caption={\texttt{\detokenize{#1}}: #2}]{../matlab/#1}}
+\renewcommand{\lstlistingname}{C\'odigo}
+\captionsetup[lstlisting]{font=small,labelfont=bf,singlelinecheck=false}
+
+% nome de arquivo/funcao no texto
+\usepackage{url}
+\urlstyle{tt}
+\makeatletter\def\UrlBreaks{\do\/\do\_\do\.\do\-}\makeatother
+\newcommand{\arq}[1]{\path{#1}}
+
+% ---------- notacao ----------
+\newcommand{\Ipv}{I_{\mathrm{pv}}}
+\newcommand{\Vt}{V_{\mathrm{t}}}
+\newcommand{\vpv}{v_{\mathrm{pv}}}
+\newcommand{\ipv}{i_{\mathrm{pv}}}
+\newcommand{\Vbat}{V_{\mathrm{bat}}}
+\newcommand{\Vref}{V_{\mathrm{ref}}}
+\newcommand{\Ta}{T_{\mathrm{a}}}
+\newcommand{\Voc}{V_{\mathrm{oc}}}
+\newcommand{\Isc}{I_{\mathrm{sc}}}
+\newcommand{\Vmp}{V_{\mathrm{mp}}}
+\newcommand{\Imp}{I_{\mathrm{mp}}}
+
+% ---------- estilos TikZ ----------
+\tikzset{
+  bloco/.style={draw=cinza,rounded corners=3pt,thick,align=center,font=\small,
+                minimum height=1.25cm,minimum width=2.9cm,inner sep=4pt},
+  ctrl/.style={bloco,draw=azul,fill=azul!10,very thick},
+  dest/.style={bloco,draw=verde!70!black,fill=verde!8},
+  aviso/.style={bloco,draw=vermelho,fill=vermelho!8},
+  seta/.style={-{Stealth[length=2.6mm]},thick,draw=cinza},
+  rot/.style={font=\scriptsize,color=cinza,inner sep=1.5pt}}
+
+\title{\textbf{Guia de implementa\c{c}\~ao do trabalho final}\\[4pt]
+  \large Energia fotovoltaica sob sombreamento parcial: painel, conversor, controle e MPPT\\[2pt]
+  \normalsize DAS5109 -- Modelagem e Simula\c{c}\~ao de Processos (UFSC)}
+\author{Explica\c{c}\~ao passo a passo, com equa\c{c}\~oes, diagramas e o c\'odigo MATLAB real}
+\date{10 de novembro de 2026}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+\begin{abstract}\noindent
+Este guia explica, na ordem em que foi constru\'ido, tudo o que foi feito no trabalho final:
+do modelo el\'etrico do painel at\'e a compara\c{c}\~ao de algoritmos de rastreamento do ponto de
+m\'axima pot\^encia (MPPT) num dia real. Cada cap\'itulo traz a f\'isica, as equa\c{c}\~oes, os
+diagramas e os trechos de c\'odigo que as implementam, com a l\'ogica explicada passo a passo.
+Os trechos de c\'odigo s\~ao lidos diretamente dos arquivos de \texttt{matlab/} (n\~ao s\~ao
+c\'opias digitadas), ent\~ao o que est\'a aqui \'e o que roda. Os n\'umeros v\^em dos arquivos de
+\texttt{resultados/}.
+\end{abstract}
+
+\begin{tcolorbox}[colback=azul!5,colframe=azul,boxrule=0.6pt,arc=2pt,title={Como usar este guia}]
+Cada cap\'itulo segue o mesmo roteiro: \textbf{(1)} o problema e a intui\c{c}\~ao f\'isica;
+\textbf{(2)} as equa\c{c}\~oes; \textbf{(3)} um diagrama; \textbf{(4)} o c\'odigo, com uma caixa
+\emph{L\'ogica passo a passo} que explica linha a linha o que ele faz; \textbf{(5)} os resultados.
+As caixas coloridas t\^em papel fixo: verde = intui\c{c}\~ao, roxa = l\'ogica do c\'odigo,
+vermelha = aten\c{c}\~ao (uma armadilha ou limita\c{c}\~ao), amarela = resultado num\'erico,
+azul = resumo. Os coment\'arios dentro do c\'odigo est\~ao sem acentos, como nos arquivos
+originais.
+\end{tcolorbox}
+
+\tableofcontents
+\listoffigures
+
+\clearpage
+\input{impl/cap01_visao}
+\input{impl/cap02_decisoes}
+\input{impl/cap03_painel}
+\input{impl/cap04_extracao}
+\input{impl/cap05_sombra}
+\input{impl/cap06_termico}
+\input{impl/cap07_conversor}
+\input{impl/cap08_controle}
+\input{impl/cap09_mppt}
+\input{impl/cap10_simulacao}
+\input{impl/cap11_cenarios}
+\input{impl/cap12_resultados}
+\input{impl/cap13_testes}
+\input{impl/cap14_fim}
+
+\end{document}

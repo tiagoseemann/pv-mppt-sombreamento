@@ -1,0 +1,94 @@
+\section{Conclus\~oes, limita\c{c}\~oes, como rodar e gloss\'ario}\label{sec:fim}
+
+\subsection{Resposta \`a pergunta central}
+
+\begin{resumo}
+\textbf{Sob sombreamento parcial est\'atico, o P\&O pode perder de 21 a 58\,\% da pot\^encia dispon\'ivel} (efici\^encias de 79\,\% a 42\,\%), porque para no pico local; o PSO recupera praticamente tudo ($\ge99{,}99$\,\%).
+
+Num dia real de ver\~ao em Florian\'opolis, com uma hora de sombra de poste e duas nuvens, considerando o aquecimento do m\'odulo (at\'e 55,6\,$^\circ$C) e as perdas do conversor, o P\&O deixa de captar 45,7\,Wh (4,3\,\% da energia
+dispon\'ivel) e o PSO, 13,8\,Wh (1,3\,\%). Na bateria, o PSO entrega 3,1\,\% a mais que o P\&O e 5,0\,\% a mais que o InC.
+
+A busca global tem um custo: sem sombra, no perfil EN 50530, o PSO perde 1,3 ponto de efici\^encia para o P\&O, porque reinicia a cada rampa. O PSO compensa quando h\'a sombras que deslocam o pico global, e n\~ao compensa quando o c\'eu s\'o varia de forma uniforme.
+\end{resumo}
+
+\textbf{Sobre a modelagem.} Os resultados que mais pesam na energia n\~ao v\^em dos algoritmos: ignorar o aquecimento superestima a energia em cerca de 9\,\% e ignorar as perdas do conversor, em cerca de 11\,\%; juntas, as simplifica\c{c}\~oes do trabalho anterior
+d\~ao $+21{,}9$\,\%. Do lado dos m\'etodos, o trabalho mostrou que (i) o datasheet n\~ao identifica o segundo diodo e o gap precisa ser efetivo; (ii) $R_p(G)$ corrige uma perda de 26\,\% em baixa irradi\^ancia sem significado f\'isico; (iii) a DAE com matriz de massa falha em 9 de 36 casos e a EDO
+reduzida resolve; e (iv) a hierarquia chaveado $\to$ m\'edio $\to$ quase-est\'atico, validada em cada degrau, permite simular as 13\,h de sol em 9 a 23\,min de CPU.
+
+\subsection{Limita\c{c}\~oes}
+
+\begin{itemize}
+\item \textbf{Sem curvas I-V medidas.} O datasheet n\~ao as traz; a valida\c{c}\~ao do painel \'e indireta (STC, $\gamma_P$, NMOT, KC200GT), e o $\gamma_P$ do modelo ($-0{,}363$\,\%/K) fica abaixo do do datasheet ($-0{,}4$\,\%/K).
+\item \textbf{Diodos de bypass: hip\'otese.} O datasheet informa a associa\c{c}\~ao ``3$\times$11'' das 33 c\'elulas, mas n\~ao quantos diodos h\'a; adotaram-se 3 subm\'odulos de 11 c\'elulas, a configura\c{c}\~ao usual.
+\item \textbf{Ruptura reversa n\~ao modelada.} O bypass conduz muito antes dela, ent\~ao o efeito na curva \'e pequeno, mas o aquecimento local (\emph{hot spot}) fica fora.
+\item \textbf{Temperatura uniforme.} Na realidade, um subm\'odulo sombreado fica mais frio que os outros.
+\item \textbf{Bateria ideal.} A tens\~ao fixa em 12\,V n\~ao varia com o estado de carga.
+\item \textbf{Sombras e nuvens sint\'eticas.} Os dados do PVGIS s\~ao hor\'arios; os resultados de energia valem para esse cen\'ario, n\~ao para um dia t\'ipico.
+\item \textbf{Quase-est\'atico conservador contra o PSO}, cerca de 1\,\% enquanto ele busca; no perfil EN 50530 a efici\^encia do PSO pode estar subestimada nessa ordem.
+\item \textbf{Margem de ganho apertada.} MG de 6,2\,dB no pior caso, a 0,2\,dB do requisito.
+\item \textbf{DCM n\~ao modelado.} O modelo m\'edio de CCM n\~ao descreve os 13 a 32\,\% do tempo em DCM, onde as perdas de condu\c{c}\~ao s\~ao subestimadas.
+\item \textbf{Perdas de cat\'alogo}, n\~ao de um prot\'otipo: a abla\c{c}\~ao mostra o tamanho do efeito, n\~ao o valor exato.
+\item \textbf{A EN 50530 foi transcrita de um relat\'orio de ensaio}, n\~ao da norma; a data do relat\'orio T\"UV ainda aparece como ``s.d.'' na bibliografia (pend\^encia opcional).
+\end{itemize}
+
+\textbf{Trabalho futuro:} reverifica\c{c}\~ao peri\'odica e posi\c{c}\~oes iniciais corrigidas pela temperatura no PSO; limiar de corrente proporcional \`a irradi\^ancia no InC; passo do InC al\'em de 2\,\% de $V_{oc}$; ganho
+escalonado no PI; modelo de DCM; temperatura por subm\'odulo; e valida\c{c}\~ao experimental com curvas I-V medidas do ZTP-160M.
+
+\subsection{Como rodar}
+
+Requer o \textbf{MATLAB} com a \textbf{Optimization Toolbox} (s\'o para o \texttt{fsolve} da extra\c{c}\~ao de par\^ametros). Testado no R2026b.
+
+\begin{lstlisting}[language=Matlab,style=matlabcod,numbers=none]
+cd matlab
+run_tests                 % todos os testes
+exp01_validacao_painel    % cada experimento grava em resultados/ e relatorio/figs/
+\end{lstlisting}
+
+\begin{center}\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+Experimento & Tempo aproximado de CPU \\ \midrule
+\texttt{exp01} a \texttt{exp05}, \texttt{exp06b} & Minutos \\
+\texttt{exp06\_en50530} & $\sim$1\,h \\
+\texttt{exp07\_dia} & $\sim$2 a 3\,h (se \texttt{resultados/e7\_series.mat} existir, s\'o redesenha a figura) \\
+\texttt{exp08\_baseline} & $\sim$30\,min \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Rode um experimento longo de cada vez:} processos MATLAB em paralelo esgotam a mem\'oria. Os dados do PVGIS j\'a est\~ao versionados; para baix\'a-los de novo, \texttt{baixar\_pvgis(2020)}.
+
+Para compilar os documentos:
+\begin{lstlisting}[language=bash,numbers=none,basicstyle=\ttfamily\scriptsize]
+cd relatorio && tectonic -X compile relatorio.tex
+cd guia      && tectonic -X compile guia_implementacao.tex
+cd proposta  && python3 gerar_figuras.py && tectonic -X compile proposta.tex
+\end{lstlisting}
+
+\subsection{Gloss\'ario}
+
+{\small
+\begin{longtable}{@{}p{3.6cm}p{12.4cm}@{}}
+\toprule
+Termo & Significado \\ \midrule \endhead
+STC & Condi\c{c}\~oes padr\~ao de teste: 1000\,W/m$^2$ e 25\,$^\circ$C de c\'elula \\
+NMOT & Temperatura nominal de opera\c{c}\~ao do m\'odulo: 800\,W/m$^2$, ar a 20\,$^\circ$C, vento de 1\,m/s \\
+MPP / MPPT & Ponto de m\'axima pot\^encia / seu rastreamento \\
+P\&O, InC, PSO & Perturba e Observa; Condut\^ancia Incremental; Otimiza\c{c}\~ao por Enxame de Part\'iculas \\
+$V_{oc},I_{sc},V_{mp},I_{mp}$ & Tens\~ao de circuito aberto, corrente de curto, tens\~ao e corrente no MPP \\
+Subm\'odulo & Grupo de c\'elulas em s\'erie protegido por um diodo de bypass \\
+Diodo de bypass & Diodo em antiparalelo que desvia a corrente em torno de um subm\'odulo sombreado \\
+Pico local e global & M\'aximos da curva P-V com sombra; o global \'e o maior \\
+Or\'aculo & Fun\c{c}\~ao que calcula o m\'aximo global verdadeiro, para medir $\eta$ \\
+$\eta$ MPPT & Energia rastreada dividida pela energia do m\'aximo global \\
+CCM e DCM & Condu\c{c}\~ao cont\'inua e descont\'inua ($i_L$ zera a cada per\'iodo) \\
+Raz\~ao c\'iclica $d$ & Fra\c{c}\~ao do per\'iodo em que a chave est\'a ligada \\
+Ripple & Oscila\c{c}\~ao pico a pico de uma grandeza por causa do chaveamento \\
+Margem de fase e de ganho & Folgas de estabilidade da malha; usual: MF $\ge45^\circ$ e MG $\ge6$\,dB \\
+Anti-windup & Congelar o integrador do PI quando o atuador satura \\
+Quase-est\'atico & Tratar conversor e PI como em regime a cada per\'iodo do MPPT \\
+EDO e DAE & Equa\c{c}\~oes diferenciais ordin\'arias; diferenciais e alg\'ebricas \\
+\texttt{fsolve} & Resolve sistemas n\~ao lineares $r(y)=0$ (Optimization Toolbox); aqui, por regi\~ao de confian\c{c}a \\
+PVGIS & Base de dados de irradi\^ancia e clima da Comiss\~ao Europeia \\
+\bottomrule
+\end{longtable}}

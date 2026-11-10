@@ -1,0 +1,119 @@
+\section{Vis\~ao geral}\label{sec:visao}
+
+O trabalho mede quanto de energia um painel fotovoltaico real perde quando uma parte dele
+fica na sombra e o algoritmo de rastreamento (MPPT) \'e simples, e quanto um algoritmo global
+recupera. Tudo foi feito em MATLAB (com a Optimization Toolbox s\'o para o \texttt{fsolve}), com c\'odigo escrito para ser lido por
+um j\'unior (laços e nomes claros, coment\'arios sobre a f\'isica).
+
+\subsection{A pergunta central}
+
+\begin{resumo}
+\textbf{Quanta energia o P\&O deixa de captar sob sombreamento parcial, e quanto um MPPT
+global (PSO) recupera, considerando o aquecimento do painel e as perdas do conversor?}
+\end{resumo}
+
+A \'ultima parte da pergunta \'e o diferencial. Muitos estudos comparam MPPT com o painel a
+temperatura fixa e um conversor ideal. Aqui o painel esquenta durante o dia e o conversor tem
+perdas; o relat\'orio mede quanto isso muda a resposta.
+
+\subsection{Por que sombra parcial \'e dif\'icil}
+
+Um m\'odulo \'e uma fileira de c\'elulas em s\'erie, dividida em grupos chamados
+\emph{subm\'odulos}. Cada subm\'odulo tem um \emph{diodo de bypass} em antiparalelo. Num
+circuito em s\'erie todos conduzem a mesma corrente. Quando um subm\'odulo recebe menos luz, ele
+n\~ao consegue gerar essa corrente; o diodo de bypass ent\~ao desvia a corrente em volta dele e
+o subm\'odulo deixa de contribuir com tens\~ao.
+
+O efeito \'e que a curva pot\^encia $\times$ tens\~ao deixa de ter um \'unico pico e passa a ter
+\textbf{v\'arios picos}, um para cada combina\c{c}\~ao de subm\'odulos ``ligados''. Um algoritmo
+local, como o P\&O (Perturba e Observa), sobe a ladeira do pico mais pr\'oximo e pode ficar preso
+num pico local, mais baixo que o global. Um algoritmo global, como o PSO (Otimiza\c{c}\~ao por
+Enxame de Part\'iculas), explora a curva inteira.
+
+\subsection{O sistema modelado}\label{sec:diagrama_sistema}
+
+O sistema tem quatro blocos em cadeia (cen\'ario $\to$ painel $\to$ conversor $\to$ bateria), um
+modelo t\'ermico que acopla a temperatura ao painel, e dois la\c{c}os de controle. O la\c{c}o
+\textbf{interno} (PI) mede a tens\~ao do painel $\vpv$ e ajusta a raz\~ao c\'iclica $d$ do conversor
+para que $\vpv$ siga uma refer\^encia $\Vref$. O la\c{c}o \textbf{externo} (MPPT), mais lento, mede
+tens\~ao e corrente m\'edias a cada per\'iodo $\Ta$ e escolhe uma nova $\Vref$. Um \emph{or\'aculo}
+calcula o m\'aximo global verdadeiro, s\'o para medir a efici\^encia dos algoritmos.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[bloco] (cen) at (0,0)    {\textbf{Cen\'ario}\\[-1pt]{\scriptsize $G$ por subm\'odulo,}\\{\scriptsize $T_{amb}$, vento}};
+  \node[bloco] (pai) at (4.2,0)  {\textbf{Painel}\\[-1pt]{\scriptsize 3 subm\'odulos,}\\{\scriptsize bypass, 2 diodos}};
+  \node[bloco] (con) at (8.4,0)  {\textbf{Buck-boost}\\[-1pt]{\scriptsize modelo m\'edio}\\{\scriptsize com perdas}};
+  \node[bloco] (bat) at (12.6,0) {\textbf{Bateria}\\[-1pt]{\scriptsize 12\,V ideal}};
+  \node[ctrl]  (mpp) at (4.2,2.9) {\textbf{MPPT}\\[-1pt]{\scriptsize P\&O, InC ou PSO}\\{\scriptsize a cada $\Ta=31$\,ms}};
+  \node[ctrl]  (pi)  at (8.4,2.9) {\textbf{PI de tens\~ao}\\[-1pt]{\scriptsize $e=\vpv-\Vref$}\\{\scriptsize $d=K_p(e+\xi/T_i)$}};
+  \node[bloco] (ter) at (4.2,-2.9) {\textbf{T\'ermico}\\[-1pt]{\scriptsize balan\c{c}o de energia}\\{\scriptsize calibrado no NMOT}};
+  \node[bloco] (ora) at (8.4,-2.9) {\textbf{Or\'aculo}\\[-1pt]{\scriptsize m\'aximo global $P_g$}\\{\scriptsize $\eta=E/E_g$}};
+  \draw[seta] (cen) -- node[rot,above]{$G$} (pai);
+  \draw[seta] (pai) -- node[rot,above]{$\vpv,\ipv$} (con);
+  \draw[seta] (con) -- node[rot,above]{$P_{out}$} (bat);
+  \draw[seta] (cen.south) |- node[rot,above,pos=0.75]{$G,T_{amb},v$} (ter.west);
+  \draw[seta] ([xshift=-6pt]ter.north) -- node[rot,left]{$T$} ([xshift=-6pt]pai.south);
+  \draw[seta] ([xshift=6pt]pai.south) -- node[rot,right]{$P_{el}$} ([xshift=6pt]ter.north);
+  \draw[seta] (ter) -- node[rot,above]{$T$} (ora);
+  \draw[seta] (pai.north) -- node[rot,right]{$V,I$} (mpp.south);
+  \draw[seta] (mpp) -- node[rot,above]{$\Vref$} (pi);
+  \draw[seta] (pi.south) -- node[rot,right]{$d$} (con.north);
+  \node[rot,anchor=west,text width=3.6cm] at (11.1,-2.9)
+       {Em azul: o controle (MPPT e PI). O or\'aculo s\'o mede, n\~ao controla.};
+\end{tikzpicture}
+\caption{Fluxo do sistema. Cada seta \'e uma vari\'avel trocada entre blocos. Os dois la\c{c}os
+de controle est\~ao em azul.}
+\label{fig:sistema}
+\end{figure}
+
+\begin{intuicao}
+Pense no PI como o motorista que mant\'em o carro na velocidade pedida (a tens\~ao $\Vref$), e no
+MPPT como o passageiro que, de tempos em tempos, diz ``tente ir um pouco mais r\'apido''
+(muda $\Vref$) e observa se a viagem rende mais. O passageiro s\'o pode falar depois que o
+motorista j\'a estabilizou a velocidade, sen\~ao n\~ao consegue saber o efeito do pedido. Esse
+\'e o crit\'erio de Femia (Cap\'itulo~\ref{sec:controle}), que fixa $\Ta$.
+\end{intuicao}
+
+\subsection{Mapa do reposit\'orio}
+
+\begin{center}\small
+\begin{tabularx}{\textwidth}{@{}l X c@{}}
+\toprule
+Pasta & O que cont\'em & Cap. \\
+\midrule
+\arq{matlab/painel}      & Modelo de 2 diodos, extra\c{c}\~ao de par\^ametros, sombreamento, valida\c{c}\~ao & 3, 4, 5 \\
+\arq{matlab/termico}     & Balan\c{c}o t\'ermico e calibra\c{c}\~ao pelo NMOT & 6 \\
+\arq{matlab/conversor}   & Buck-boost: ideal, m\'edio com perdas, chaveado, equil\'ibrio, CCM/DCM & 7 \\
+\arq{matlab/controle}    & Lineariza\c{c}\~ao, resposta em frequ\^encia, margens, projeto do PI & 8 \\
+\arq{matlab/mppt}        & P\&O, InC, PSO, duty fixo, rastreamento est\'atico & 9 \\
+\arq{matlab/simulacao}   & Simula\c{c}\~ao din\^amica, quase-est\'atica, or\'aculo & 10 \\
+\arq{matlab/cenarios}    & Perfil EN 50530, dia do PVGIS, sombras & 11 \\
+\arq{matlab/experimentos}& \arq{exp01} a \arq{exp08}, que geram \arq{resultados/} e as figuras & 12 \\
+\arq{matlab/tests}       & Testes automatizados (80) & 13 \\
+\arq{relatorio/}, \arq{proposta/}, \arq{guia/} & Documentos em \LaTeX & --- \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\subsection{Ordem de constru\c{c}\~ao}
+
+O plano (\arq{docs/superpowers/plans/2026-10-27-trabalho-final-pv-mppt.md}) tem 16 tarefas
+(0 a 15). Cada bloco s\'o foi constru\'ido depois que o anterior estava testado:
+
+\begin{enumerate}
+\item Reorganiza\c{c}\~ao do c\'odigo e harness de testes (tarefa 0).
+\item Depend\^encia da c\'elula com $G$ e $T$ e KCL do m\'odulo (tarefa 1).
+\item Extra\c{c}\~ao de par\^ametros, validada no KC200GT (tarefa 2).
+\item Painel real ZTP-160M e sua valida\c{c}\~ao (tarefa 3).
+\item Modelo t\'ermico (tarefa 4).
+\item Conversor: modelo m\'edio, equil\'ibrio, CCM/DCM (tarefa 5) e modelo chaveado (tarefa 6).
+\item Lineariza\c{c}\~ao e resposta em frequ\^encia (tarefa 7) e projeto do PI (tarefa 8).
+\item Algoritmos de MPPT (tarefa 9).
+\item Simula\c{c}\~ao din\^amica (tarefa 10) e quase-est\'atica (tarefa 11).
+\item Cen\'arios (tarefa 12) e experimentos de resultados (tarefa 13).
+\item Relat\'orio (tarefa 14) e revis\~ao final com publica\c{c}\~ao (tarefa 15).
+\end{enumerate}
+
+Depois veio uma etapa extra de \textbf{simplifica\c{c}\~ao do c\'odigo} (Cap\'itulo~\ref{sec:testes}).

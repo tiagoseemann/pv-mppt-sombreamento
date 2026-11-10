@@ -1,0 +1,107 @@
+\section{Testes, simplifica\c{c}\~ao do c\'odigo e verifica\c{c}\~ao}\label{sec:testes}
+
+\subsection{O harness de testes}
+
+\arq{matlab/run_tests.m} chama \texttt{setup\_path} (que p\~oe as pastas do projeto no \emph{path}) e roda \texttt{runtests} em \arq{matlab/tests/}; falha se algum teste falhar. S\~ao 14 arquivos
+com \texttt{matlab.unittest} e \textbf{78 testes} (eram 81 antes da simplifica\c{c}\~ao e 80 depois dela; os 2 testes do LM sa\'iram junto com ele). Cada teste prova uma propriedade f\'isica ou um contrato, e o coment\'ario diz de onde vem o valor esperado.
+
+\codigo{tests/test_conversor.m}{11}{37}{tr\^es testes do conversor: ganho ideal, balan\c{c}o de energia e derivadas nulas no equil\'ibrio.}{lst:teste}
+
+\begin{logica}
+\begin{enumerate}
+\item \texttt{test\_ganho\_ideal}: sem perdas o ganho do buck-boost \'e $d/(1-d)=V_{bat}/\vpv$ e $\eta=1$ (f\'isica pura).
+\item \texttt{test\_balanco\_de\_energia}: a pot\^encia de entrada $\vpv\ipv$ deve ser igual \`a pot\^encia na bateria mais as perdas de condu\c{c}\~ao; $P_{out}=P_{in}-P_{cond}-P_{sw}$; e $0{,}85<\eta<1$.
+\item \texttt{test\_rhs\_nulo\_no\_equilibrio}: no equil\'ibrio calculado por \texttt{equilibrio\_conversor}, as derivadas de \texttt{conversor\_medio\_rhs} s\~ao nulas. Confere \emph{dois} c\'odigos diferentes entre si.
+\end{enumerate}
+\end{logica}
+
+\begin{center}\small
+\begin{tabularx}{\textwidth}{@{}l>{\raggedright\arraybackslash}X@{}}
+\toprule
+Arquivo & O que verifica \\ \midrule
+\arq{test_kcl_modulo} & O res\'iduo do m\'odulo e a inclina\c{c}\~ao $dI/dV$ (deriva\c{c}\~ao impl\'icita) \\
+\arq{test_extracao} & A extra\c{c}\~ao no KC200GT contra o resultado publicado de Villalva \\
+\arq{test_ztp160m}, \arq{test_ztp160m_extracao} & Pontos de STC do ZTP-160M, converg\^encia dos modelos 1d e 2d, $\gamma_P$ \\
+\arq{test_sombreamento} & $P_{mp}$ e $V_{mp}$ de refer\^encia, n\'umero de picos, comportamento do bypass \\
+\arq{test_termico} & Calibra\c{c}\~ao pelo NMOT, efeito do vento e da extra\c{c}\~ao de eletricidade \\
+\arq{test_conversor} & Balan\c{c}o de energia, derivadas nulas no equil\'ibrio, ponto invi\'avel, dimensionamento \\
+\arq{test_chaveado_medio} & M\'edio contra chaveado: desvio $<0{,}5$\,\% em $v$, $<1{,}5$\,\% em $i_L$, ripple dentro de 15\,\% \\
+\arq{test_linearizacao} & A planta linearizada contra \texttt{gvd\_analitico} \\
+\arq{test_controle} & Margens, tempo de acomoda\c{c}\~ao, $\Ta\ge1{,}5\,t_s$, e a falha da regra $\omega_c/5$ \\
+\arq{test_mppt} & Cada algoritmo em curvas conhecidas, incluindo o preso em pico local \\
+\arq{test_sim_dinamica} & Energia, or\'aculo e partida da simula\c{c}\~ao din\^amica \\
+\arq{test_quase_estatica} & Quase-est\'atico contra din\^amico (D16), blocos do or\'aculo e totais \\
+\arq{test_cenarios} & EN 50530, convers\~ao de hora do PVGIS e eventos de sombra \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+Uma ideia recorrente \'e a de \textbf{regress\~ao por comparativo}: um modelo mais detalhado serve de refer\^encia para um mais simples. O m\'edio \'e conferido contra o chaveado, o quase-est\'atico contra o
+din\^amico, o jacobiano anal\'itico contra diferen\c{c}as finitas e a planta num\'erica contra a anal\'itica.
+
+\subsection{A etapa de simplifica\c{c}\~ao do c\'odigo}
+
+Depois do trabalho conclu\'ido foi feita uma auditoria para deixar o c\'odigo mais simples, com um crit\'erio r\'igido: \textbf{nenhum n\'umero do relat\'orio pode mudar}. Como a licen\c{c}a do MATLAB estava vencendo,
+os experimentos n\~ao foram rodados de novo; s\'o entraram mudan\c{c}as de risco baixo, que apenas reorganizam o c\'odigo. O processo foi: spec, plano, achados (etapa 1: modelo e experimentos; etapa 2: testes),
+decis\~ao item a item, aplica\c{c}\~ao em lotes e revis\~ao independente. Os documentos est\~ao em \arq{docs/superpowers/simplificacao/}.
+
+\textbf{Etapa 1, 9 achados de risco baixo aplicados:}
+\begin{enumerate}
+\item \texttt{levenberg\_marquardt} (removido depois, ver Cap\'itulo~\ref{sec:extracao}) sem o argumento opcional \texttt{opts} e a subfun\c{c}\~ao \texttt{campo}, que ningu\'em usava.
+\item \texttt{curva\_pv} sem o campo de sa\'ida \texttt{c.Vj}, que ningu\'em lia.
+\item \texttt{sim\_medio\_aberta} sem o argumento \texttt{max\_passo} e sem a generalidade de $G$ como fun\c{c}\~ao do tempo.
+\item \texttt{sim\_chaveado} sem a sa\'ida \texttt{r.q}.
+\item \texttt{projeto\_pi} sem \texttt{rel.tabela} e sem o \texttt{ts\_nom} s\'o usado para preench\^e-la (economiza 400 chamadas de \texttt{resposta\_degrau\_mf}).
+\item Remo\c{c}\~ao do \texttt{mkdir} defensivo em 9 scripts de experimento, pois as pastas s\~ao versionadas.
+\item Cria\c{c}\~ao de \texttt{oraculo\_com\_cache.m}, antes uma subfun\c{c}\~ao duplicada nos dois simuladores.
+\item \texttt{lei\_pi} chamada uma vez, e n\~ao duas, dentro do jacobiano da \texttt{sim\_dinamica}.
+\item Remo\c{c}\~ao de coment\'ario sobre uma op\c{c}\~ao (\texttt{op.V0}) que n\~ao existia no quase-est\'atico.
+\end{enumerate}
+O achado 10 (unificar as seis resolu\c{c}\~oes de \texttt{curva\_pv}) tem risco m\'edio: mudaria $P_{mp}$, $V_{mp}$ e $V_{oc}$ por pouco e, em cascata, $L$, $C$, o PI e todos os CSVs. N\~ao foi aplicado.
+
+\textbf{Etapa 2 (testes).} Achados 1, 2 e 5 aplicados: um teste duplicado de \texttt{test\_conversor} foi fundido no de balan\c{c}o de energia, um campo n\~ao usado do \texttt{setupOnce} saiu, e o
+\emph{setup} de um caso do ZTP-160M foi movido para o \'unico teste que o usa. Os achados 3 e 4 foram recusados, para o teste de extra\c{c}\~ao continuar autossuficiente. O teste \texttt{test\_fechada\_igual\_fzero}
+foi renomeado para \texttt{test\_d\_fechado\_satisfaz\_equilibrio}, pois o nome citava um \texttt{fzero} que ele n\~ao usa.
+
+\textbf{O que ficou de fora de prop\'osito.} A auditoria tamb\'em registrou o que \emph{n\~ao} foi mexido e por qu\^e. O \emph{setup} repetido entre arquivos de teste (2 a 5 linhas) ficou, porque uma fun\c{c}\~ao compartilhada
+esconderia de onde vem cada par\^ametro, o que vai contra o estilo exigido (simples, expl\'icito, leg\'ivel por um j\'unior).
+
+\subsection{Resultado da simplifica\c{c}\~ao}
+
+\begin{center}\small
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Pasta & Linhas antes & Depois & Varia\c{c}\~ao \\ \midrule
+numerico & 56 & 47 & $-9$ \\
+painel & 242 & 240 & $-2$ \\
+termico & 35 & 35 & 0 \\
+conversor & 125 & 117 & $-8$ \\
+controle & 224 & 216 & $-8$ \\
+mppt & 140 & 140 & 0 \\
+simulacao & 324 & 315 & $-9$ \\
+cenarios & 91 & 91 & 0 \\
+experimentos & 480 & 466 & $-14$ \\
+tests & 812 & 806 & $-6$ \\
+\textbf{Total} & \textbf{2548} & \textbf{2492} & $\boldsymbol{-56}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+S\~ao linhas de c\'odigo (sem coment\'ario e sem branco). Os coment\'arios (1494 antes, 1486 depois) foram mantidos porque explicam a f\'isica. A conclus\~ao da auditoria foi que o c\'odigo j\'a estava enxuto: as
+$\sim$4400 linhas totais se explicam porque 34\,\% s\~ao coment\'arios, os testes somam 806 linhas, os experimentos 466, o escopo \'e amplo e s\'o havia o MATLAB base, sem toolboxes.
+
+\subsection{Como se verificou que nada quebrou}
+
+\begin{itemize}
+\item \textbf{Testes:} 81 de 81 antes; 81 de 81 depois da etapa 1; 80 de 80 depois da etapa 2; 78 de 78 depois de trocar o LM pelo \texttt{fsolve} (10/11/2026, ap\'os a simplifica\c{c}\~ao).
+\item \textbf{\texttt{checkcode}} (o analisador do MATLAB) nos arquivos alterados: nenhum aviso, antes nem depois.
+\item \textbf{Revis\~ao independente da etapa 1:} conformidade e qualidade aprovadas; as duas observa\c{c}\~oes menores, s\'o de coment\'ario, foram corrigidas.
+\item \textbf{Prova de que os testes enxutos n\~ao ficaram mais fracos:} a mesma perturba\c{c}\~ao no modelo faz o teste antigo e o novo falharem. Por exemplo, apagar \texttt{- eq.Psw} em \texttt{equilibrio\_conversor.m} d\'a 1 falha no antigo e 1 no
+ novo; trocar \texttt{r.E = E} por \texttt{1.02 * E} em \texttt{sim\_quase\_estatica.m} d\'a 4 falhas no antigo e 4 no novo.
+\item \textbf{Refer\^encias:} nenhuma refer\^encia \'orf\~a em \texttt{matlab/}, no relat\'orio ou no README.
+\end{itemize}
+
+\begin{atencao}[: ponto fraco a declarar]
+Os experimentos \textbf{n\~ao foram rodados de novo} depois da simplifica\c{c}\~ao. A garantia de que os n\'umeros n\~ao mudam vem de as mudan\c{c}as serem s\'o reorganiza\c{c}\~ao (o mesmo c\'odigo, mudado de lugar ou sem as linhas n\~ao
+usadas). E6, E7 e E8 n\~ao foram reexecutados. O \texttt{git log} mostra a branch \texttt{simplificacao} j\'a mesclada (commit \texttt{3f4f1ed}).
+\end{atencao}

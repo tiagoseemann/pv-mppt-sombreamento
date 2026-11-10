@@ -1,0 +1,210 @@
+\section{Algoritmos de MPPT}\label{sec:mppt}
+
+Arquivos: \arq{mppt/config_mppt.m}, \arq{mppt_po.m}, \arq{mppt_inc.m}, \arq{mppt_pso.m}, \arq{mppt_fixo.m},
+\arq{rastrear_estatico.m}. Os tr\^es algoritmos t\^em a mesma interface,
+\texttt{[Vref, e] = alg(V, I, e, cfg)}: recebem a tens\~ao e a corrente m\'edias do \'ultimo per\'iodo $\Ta$,
+guardam o estado em \texttt{e} (vazio na primeira chamada) e devolvem a pr\'oxima tens\~ao de refer\^encia. Isso permite
+trocar um pelo outro sem mudar a simula\c{c}\~ao.
+
+\subsection{Perturba e Observa (P\&O)}
+
+O P\&O \'e uma subida de encosta na curva $P(V)$. A cada per\'iodo, a refer\^encia anda um passo $\delta$. Se a pot\^encia
+subiu, continua no mesmo sentido; se caiu, inverte.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+  \node[bloco,minimum width=2.8cm] (m) at (0,0) {Mede $V$, $I$\\{\scriptsize $P=V\cdot I$}};
+  \node[bloco,diamond,aspect=2.2,inner sep=1pt,draw=amarelo!80!black,fill=amarelo!10] (d) at (4.3,0) {{\scriptsize $P<P_{ant}$?}};
+  \node[aviso,minimum width=2.8cm] (inv) at (4.3,-2.4) {inverte a dire\c{c}\~ao\\{\scriptsize $dir\leftarrow-dir$}};
+  \node[bloco,minimum width=3.4cm] (st) at (8.8,0) {$\Vref\leftarrow\Vref+dir\cdot\delta$\\{\scriptsize limita \`a faixa permitida}};
+  \node[bloco,minimum width=2.6cm] (sv) at (13.0,0) {guarda\\{\scriptsize $P_{ant}=P$}};
+  \draw[seta] (m) -- (d);
+  \draw[seta] (d) -- node[rot,above]{n\~ao} (st);
+  \draw[seta] (d) -- node[rot,right]{sim} (inv);
+  \draw[seta] (inv.east) -| (st.south);
+  \draw[seta] (st) -- (sv);
+  \draw[seta] (sv.north) -- ++(0,1.3) -| node[rot,above,pos=0.25]{pr\'oximo per\'iodo $\Ta$} (m.north);
+\end{tikzpicture}
+\caption{L\'ogica do P\&O em cada per\'iodo $\Ta$.}
+\label{fig:po}
+\end{figure}
+
+\begin{itemize}
+\item \textbf{Vantagem:} simples e r\'apido.
+\item \textbf{Oscila no MPP:} nunca para. Perto do pico fica alternando entre $V_{mp}-\delta$, $V_{mp}$ e $V_{mp}+\delta$, o que custa um pouco
+ de energia ($\sim$0,1\,\% em STC no E5).
+\item \textbf{Preso em pico local:} s\'o v\^e a inclina\c{c}\~ao local. Partindo de perto de $V_{oc}$, para no primeiro pico que encontra.
+\end{itemize}
+
+\codigointeiro{mppt/mppt_po.m}{Perturba e Observa.}{lst:po}
+
+\begin{logica}
+\begin{enumerate}
+\item Na primeira chamada n\~ao h\'a pot\^encia anterior: o estado come\c{c}a em $V_{\mathrm{ref},0}=0{,}85V_{oc}$, descendo ($dir=-1$), pois o MPP est\'a \`a esquerda de $V_{oc}$.
+\item Nas seguintes: se \texttt{P < e.Pant}, o \'ultimo passo foi no sentido errado e \texttt{e.dir} inverte. Depois guarda \texttt{P}.
+\item D\'a o passo \texttt{e.Vref + e.dir*cfg.delta} e limita \`a faixa permitida. Ao bater num limite, a dire\c{c}\~ao passa a apontar para dentro, evitando uma trava
+ te\'orica (refer\^encia saturada e pot\^encia constante, sem nunca inverter).
+\end{enumerate}
+\end{logica}
+
+\subsection{Condut\^ancia Incremental (InC)}
+
+No MPP, $dP/dV=0$. Como $P=VI$, isso d\'a $I+V\,dI/dV=0$, ou $dI/dV=-I/V$. Define-se
+\begin{equation}
+s=\frac{dI}{dV}+\frac{I}{V}=\frac{1}{V}\,\frac{dP}{dV}
+\end{equation}
+\begin{itemize}
+\item $s>0$: est\'a \`a esquerda do MPP, aumenta a tens\~ao;
+\item $s<0$: est\'a \`a direita do MPP, diminui a tens\~ao;
+\item $|s|<\varepsilon$: est\'a no MPP, mant\'em a refer\^encia.
+\end{itemize}
+Por isso o InC n\~ao oscila, ao contr\'ario do P\&O. Como ele, s\'o enxerga a inclina\c{c}\~ao local e tamb\'em para num pico local.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+  \node[bloco,minimum width=3.0cm] (m) at (0,0) {$dV=V-V_{ant}$\\{\scriptsize $dI=I-I_{ant}$}};
+  \node[bloco,diamond,aspect=2.2,inner sep=1pt,draw=amarelo!80!black,fill=amarelo!10] (d1) at (4.8,0) {{\scriptsize passo comandado}\\{\scriptsize foi zero?}};
+  \node[bloco,minimum width=4.8cm] (luz) at (4.8,-2.7) {\textbf{refer\^encia mantida:} $|dI|>\epsilon_I$?\\{\scriptsize sobe se $dI>0$, desce se $dI<0$}};
+  \node[bloco,minimum width=3.4cm] (s) at (10.2,0) {$s=dI/dV+I/V$};
+  \node[bloco,minimum width=4.4cm] (r) at (10.2,-2.7) {se $|s|>\varepsilon$:\\{\scriptsize $\Vref\leftarrow\Vref+\mathrm{sign}(s)\,\delta$}};
+  \draw[seta] (m) -- (d1);
+  \draw[seta] (d1) -- node[rot,above]{n\~ao} (s);
+  \draw[seta] (d1) -- node[rot,right]{sim} (luz);
+  \draw[seta] (s) -- (r);
+\end{tikzpicture}
+\caption{L\'ogica do InC. O ramo \'e escolhido pelo passo \emph{comandado}, n\~ao pelo $dV$ medido.}
+\label{fig:inc}
+\end{figure}
+
+\codigointeiro{mppt/mppt_inc.m}{Condut\^ancia Incremental.}{lst:inc}
+
+\begin{logica}
+\begin{enumerate}
+\item Primeira chamada: d\'a um passo para ter dois pontos e poder calcular $dI/dV$.
+\item $V\le0$ (capacitor descarregado na partida): $I/V$ n\~ao existe; sobe a tens\~ao.
+\item \textbf{Refer\^encia mantida} (\texttt{e.dVref == 0}): se a corrente mudou mais que $\epsilon_I$ (0,2\,\% de $I_{sc}$), foi a irradi\^ancia: mais luz desloca o MPP para
+ a direita, ent\~ao sobe a tens\~ao; menos luz, desce. O ramo \'e decidido pelo passo \emph{comandado}, pois em simula\c{c}\~ao din\^amica uma refer\^encia mantida ainda gera $dV$ de $10^{-5}$ a $10^{-3}$\,V, e dividir $dI$ por isso daria um $s$ enorme e aleat\'orio.
+\item \textbf{Caso normal:} calcula $s$; se $|s|>\varepsilon$ anda $\delta$ no sentido de $\mathrm{sign}(s)$.
+\end{enumerate}
+\end{logica}
+
+\textbf{Escolha de $\varepsilon$ (D14).} Um passo $\delta$ muda $s$ em cerca de $|ds/dV|\,\delta$. O ponto da grade mais pr\'oximo do MPP est\'a a no m\'aximo
+$\delta/2$ dele, ent\~ao $|s|$ ali \'e no m\'aximo metade desse salto; $\varepsilon$ tem de ser pelo menos isso, ou o InC nunca para. Com
+$\varepsilon=0{,}002$\,S (valor inicial) isso nunca acontecia, pois o salto medido era de 0,09 a 0,10\,S, e o InC oscilava como P\&O. O c\'odigo
+calcula $\varepsilon=\tfrac12|ds/dV|\,\delta$ da curva de STC (ver \texttt{config\_mppt}).
+
+\subsection{Enxame de part\'iculas (PSO)}
+
+Cada part\'icula \'e uma tens\~ao candidata $x$. O conversor s\'o consegue impor uma tens\~ao por vez; ent\~ao as part\'iculas s\~ao
+avaliadas \textbf{uma por per\'iodo $\Ta$}. Depois que as $N$ foram medidas, o enxame se move:
+\begin{equation}\label{eq:pso}
+v\leftarrow w\,v+c_1r_1\,(p_{best}-x)+c_2r_2\,(g_{best}-x),\qquad x\leftarrow x+v
+\end{equation}
+\begin{center}\small
+\begin{tabularx}{\textwidth}{@{}l>{\raggedright\arraybackslash}Xl@{}}
+\toprule
+Termo & Significado & Valor \\ \midrule
+$w\,v$ & In\'ercia: continua andando no sentido em que ia & $w=0{,}4$ \\
+$c_1r_1(p_{best}-x)$ & Mem\'oria pr\'opria: volta ao melhor ponto que \emph{esta} part\'icula achou & $c_1=1{,}2$ \\
+$c_2r_2(g_{best}-x)$ & Mem\'oria do enxame: vai ao melhor ponto que \emph{qualquer} part\'icula achou & $c_2=2{,}0$ \\
+$r_1,r_2$ & Sorteios em $[0,1]$ & \texttt{RandStream} pr\'oprio \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+  \node[bloco,minimum width=3.0cm] (a) at (0,0) {Aplica a part\'icula $k$\\{\scriptsize (um per\'iodo $\Ta$)}};
+  \node[bloco,minimum width=3.2cm] (b) at (4.8,0) {Mede $P$ e atualiza\\{\scriptsize $p_{best}$ e $g_{best}$}};
+  \node[bloco,diamond,aspect=2.2,inner sep=1pt,draw=amarelo!80!black,fill=amarelo!10] (c) at (9.8,0) {{\scriptsize todas as $N$}\\{\scriptsize medidas?}};
+  \node[bloco,minimum width=3.0cm] (d) at (9.8,-2.7) {Move o enxame\\{\scriptsize eq.~(\ref{eq:pso})}};
+  \node[bloco,diamond,aspect=2.2,inner sep=1pt,draw=amarelo!80!black,fill=amarelo!10] (e) at (4.8,-2.7) {{\scriptsize convergiu?}};
+  \node[dest,minimum width=3.4cm] (f) at (0,-2.7) {Fixa $\Vref=g_{best}$\\{\scriptsize monitora a pot\^encia}};
+  \node[aviso,minimum width=3.4cm] (g) at (0,-5.2) {Se $|\Delta P|>10\,\%$:\\{\scriptsize reinicia a busca}};
+  \draw[seta] (a) -- (b);
+  \draw[seta] (b) -- (c);
+  \draw[seta] (c) -- node[rot,right]{sim} (d);
+  \draw[seta] (c.north) -- ++(0,0.9) -| node[rot,above,pos=0.25]{n\~ao: pr\'oxima part\'icula} (a.north);
+  \draw[seta] (d) -- (e);
+  \draw[seta] (e) -- node[rot,above]{sim} (f);
+  \draw[seta] (f) -- (g);
+  \draw[seta] (e.north) -- ++(0,0.65) -| node[rot,above,pos=0.2]{n\~ao: nova rodada} (a.south);
+  \draw[seta] (g.west) -- ++(-0.8,0) |- node[rot,left,pos=0.25]{reinicia} (a.west);
+\end{tikzpicture}
+\caption{M\'aquina de estados do PSO. Reiniciar significa voltar \`as posi\c{c}\~oes iniciais, com uma nova semente.}
+\label{fig:pso}
+\end{figure}
+
+\codigointeiro{mppt/mppt_pso.m}{PSO com avalia\c{c}\~ao sequencial.}{lst:pso}
+
+\begin{logica}
+\begin{enumerate}
+\item \textbf{Primeira chamada:} \texttt{iniciar} cria o estado (part\'iculas em \texttt{cfg.x0}, paradas, sem mem\'oria; gerador pr\'oprio com semente \texttt{seed + nReinicios}) e aplica a part\'icula 1.
+\item \textbf{Convergido:} a primeira medi\c{c}\~ao vira a pot\^encia de refer\^encia (\texttt{Pconv}); se depois $|P-P_{conv}|>10\,\%\cdot\max(P_{conv},P_{min})$, a curva P-V mudou e a busca recome\c{c}a.
+\item \textbf{Em busca:} a medi\c{c}\~ao \'e da part\'icula \texttt{k} (aplicada no per\'iodo anterior): atualiza \texttt{pbest} e \texttt{gbest}.
+\item Quando todas as $N$ foram medidas, move o enxame (eq.~\ref{eq:pso}) com \texttt{rand(e.rs,\ldots)} e limita \`a faixa.
+\item Para (\texttt{convergido}) se todas estiverem a menos de \texttt{tolV} do \texttt{gbest} ou se \texttt{iter >= maxIter}; ent\~ao a refer\^encia fica no \texttt{gbest}.
+\end{enumerate}
+\end{logica}
+
+\textbf{Posi\c{c}\~oes iniciais (D14).} Com $N_{sub}$ diodos de bypass, os m\'aximos locais ficam perto de m\'ultiplos de $V_{mp}/N_{sub}$ (cada subm\'odulo ativo a mais soma
+$\sim$ uma tens\~ao de MPP de subm\'odulo; Patel e Agarwal, 2008). O c\'odigo p\~oe uma part\'icula em cada $k\,V_{mp}/N_{sub}$ ($k=1,\dots,N_{sub}$) mais uma em
+$0{,}9V_{oc}$: $N=N_{sub}+1=4$ part\'iculas. Antes, com part\'iculas espa\c{c}adas linearmente, o PSO ca\'ia no pico local em cerca de $1/3$ das sementes no padr\~ao $[1\ 0{,}6\ 0{,}3]$.
+
+\textbf{Limita\c{c}\~oes declaradas} (vers\~ao b\'asica, de prop\'osito; ver D17): entre rein\'icios a tens\~ao fica parada no \texttt{gbest}, mas o $V_{mp}$ real deriva com a temperatura
+($\sim0{,}4$\,\%/K); qualquer mudan\c{c}a de $\sim10$\,\% na pot\^encia dispara uma busca completa, mesmo que o pico global n\~ao tenha mudado de lugar; durante a busca n\~ao h\'a
+teste de rein\'icio, e sob rampas r\'apidas as mem\'orias ficam velhas.
+
+\subsection{Configura\c{c}\~ao comum}
+
+\codigo{mppt/config_mppt.m}{44}{63}{par\^ametros do PSO: in\'ercia, atra\c{c}\~oes, part\'iculas iniciais e crit\'erios de converg\^encia e rein\'icio.}{lst:cfgpso}
+
+\begin{center}\small
+\begin{tabularx}{\textwidth}{@{}lp{3.6cm}X@{}}
+\toprule
+Par\^ametro & Valor & Motivo \\ \midrule
+$V_{\mathrm{ref},0}$ & $0{,}85V_{oc}$ & O conversor liga com o painel quase em aberto \\
+Faixa de $\Vref$ & $0{,}10V_{oc}$ a $0{,}95V_{oc}$ & Abaixo de 10\,\% a pot\^encia \'e quase nula; acima de 95\,\% o painel est\'a quase em aberto \\
+Passo $\delta$ (P\&O, InC) & $0{,}01V_{oc}$ & Ajustado no E6 \\
+$\varepsilon$ do InC & $\tfrac12|ds/dV|\,\delta$ & Ver acima \\
+$\epsilon_I$ do InC & $0{,}002\,I_{sc}$ & Distingue mudan\c{c}a de luz de ru\'ido \\
+\texttt{tolV}, \texttt{maxIter} (PSO) & $0{,}01V_{oc}$, 15 & Crit\'erio de converg\^encia \\
+Limiar de rein\'icio & 10\,\% (piso 2\,\% de $P_{mp}$) & Sem o piso, no amanhecer o PSO reiniciaria sem parar \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\subsection{Rastreamento est\'atico (E5)}
+
+\arq{rastrear_estatico} isola o algoritmo da din\^amica do conversor. Sup\~oe que a malha de tens\~ao assenta dentro de um per\'iodo $\Ta$ (D13): a tens\~ao do painel \'e exatamente a
+refer\^encia pedida e a corrente vem direto da curva est\'atica $I(V)$.
+
+\codigointeiro{mppt/rastrear_estatico.m}{o la\c{c}o do rastreamento est\'atico.}{lst:rastrear}
+
+\begin{logica}
+A cada passo: resolve o painel em $V$ (com \emph{warm start}), registra $V$ e $P=VI$, e chama o algoritmo para obter o pr\'oximo $V$. Nada de EDO.
+\end{logica}
+
+O PSO usa 10 sementes por padr\~ao de sombra. A efici\^encia \'e $\eta=P_{rastreada}/P_{pico\ global}$:
+
+\begin{resultado}
+\small\centering
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Padr\~ao de irradi\^ancia & P\&O & InC & PSO (10 sementes) \\ \midrule
+{[1 1 1]} (sem sombra) & 99,9\,\% & 99,97\,\% & 100,0\,\% \\
+{[1 0,5 0,5]} & 99,9\,\% & 99,98\,\% & 100,0\,\% \\
+{[1 0,3 0,3]} & 99,9\,\% & 100,0\,\% & 100,0\,\% \\
+{[1 1 0,4]} & \textbf{67,4\,\%} & \textbf{67,6\,\%} & 99,99 a 100\,\% \\
+{[1 0,6 0,3]} & \textbf{79,0\,\%} & \textbf{79,2\,\%} & 99,99 a 100\,\% \\
+{[0,8 0,8 0,2]} & \textbf{42,3\,\%} & \textbf{42,2\,\%} & 99,99 a 100\,\% \\
+\bottomrule
+\end{tabular}
+\end{resultado}
+
+Sem sombra, ou com sombra em que o pico global \'e o mais pr\'oximo de $V_{oc}$ ([1 0,5 0,5] e [1 0,3 0,3]), os tr\^es acham o m\'aximo. Quando o global fica abaixo do local mais
+perto de $V_{oc}$, P\&O e InC ficam presos e perdem de 21\,\% at\'e 58\,\%. O PSO acha o global em todas as 10 sementes de todos os padr\~oes. O pre\c{c}o \'e o tempo: de 24 a 61
+per\'iodos para convergir, contra 1 a 7.
