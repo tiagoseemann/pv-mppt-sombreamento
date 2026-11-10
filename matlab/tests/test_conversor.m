@@ -17,7 +17,8 @@ verifyEqual(tc, eq.eta, 1, 'AbsTol', 1e-9);
 end
 
 function test_balanco_de_energia(tc)
-% Potencia de entrada = potencia na bateria + perdas de conducao, e Pout = Pin - Pcond - Psw; eta fica entre 0,85 e 1.
+% Potencia de entrada = potencia na bateria + perdas de conducao, e
+% Pout = Pin - Pcond - Psw; eta fica entre 0,85 e 1.
 pc = tc.TestData.pc;
 v = 18;  i = 7.7;
 eq = equilibrio_conversor(v, i, pc);
