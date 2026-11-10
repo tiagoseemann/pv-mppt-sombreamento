@@ -1,21 +1,16 @@
-function [x, info] = levenberg_marquardt(fun, x0, lb, ub, opts)
+function [x, info] = levenberg_marquardt(fun, x0, lb, ub)
 %LEVENBERG_MARQUARDT Minimiza ||fun(x)||^2 com limites lb <= x <= ub.
 %   [x, info] = levenberg_marquardt(fun, x0, lb, ub)
-%   [x, info] = levenberg_marquardt(fun, x0, lb, ub, opts)
 %
 %   fun  : funcao que devolve o vetor de residuos r(x) (coluna)
-%   opts : struct opcional com campos
-%          maxIt  numero maximo de iteracoes (padrao 500)
-%          tol    para quando o custo ||r||^2 fica abaixo disso (padrao 1e-14)
 %   info : struct com iter (iteracoes), residuo = ||r|| e r (residuos finais)
 %
 %   Substitui lsqnonlin (Optimization Toolbox ausente). Jacobiano por
 %   diferencas centrais; os limites sao impostos projetando cada passo
 %   de volta na caixa [lb, ub].
 
-if nargin < 5, opts = struct(); end
-maxIt = campo(opts, 'maxIt', 500);
-tol   = campo(opts, 'tol', 1e-14);
+maxIt = 500;    % numero maximo de iteracoes
+tol = 1e-14;    % para quando o custo ||r||^2 fica abaixo disso
 
 lb = lb(:);  ub = ub(:);
 x = min(max(x0(:), lb), ub);          % chute inicial dentro dos limites
@@ -26,7 +21,6 @@ custo = r.' * r;
 % da solucao); mu grande -> passo curto na direcao do gradiente (seguro).
 mu = 1e-3;
 
-it = 0;                               % definido mesmo se maxIt = 0
 for it = 1:maxIt
     J = jacobiano_numerico(fun, x, r, lb, ub);
     A = J.' * J;                      % aproximacao de Gauss-Newton da Hessiana / 2
@@ -82,14 +76,5 @@ for j = 1:numel(x)
     x_mais  = x;  x_mais(j)  = min(x(j) + h, ub(j));
     x_menos = x;  x_menos(j) = max(x(j) - h, lb(j));
     J(:, j) = (fun(x_mais) - fun(x_menos)) / (x_mais(j) - x_menos(j));
-end
-end
-
-function v = campo(s, nome, padrao)
-% Le o campo opcional s.(nome); usa o valor padrao se nao existir.
-if isfield(s, nome)
-    v = s.(nome);
-else
-    v = padrao;
 end
 end
