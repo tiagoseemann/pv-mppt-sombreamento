@@ -1,0 +1,109 @@
+\section{Modelo t\'ermico e calibra\c{c}\~ao pelo NMOT}\label{sec:termico}
+
+Arquivos: \arq{termico/termico_dTdt.m}, \arq{parametros_termicos.m}, \arq{calibrar_nmot.m}. A
+temperatura do painel muda a curva I-V (Cap\'itulo~\ref{sec:painel}) e portanto muda onde est\'a o
+ponto de m\'axima pot\^encia. Ignor\'a-la superestima a energia em cerca de 9\,\% no dia simulado.
+
+\subsection{O balan\c{c}o de energia}
+
+O m\'odulo \'e tratado como um \'unico corpo \`a temperatura $T$ (par\^ametros concentrados). A
+energia que entra menos a que sai aquece o m\'odulo:
+\begin{equation}\label{eq:termico}
+m c_p\frac{dT}{dt}=\underbrace{\alpha AG}_{\text{sol absorvido}}
+-\underbrace{P_{el}}_{\text{eletricidade}}
+-\underbrace{h_c\,2A\,(T-T_{amb})}_{\text{convec\c{c}\~ao}}
+-\underbrace{\varepsilon\sigma A\,(T^4-T_{c\acute eu}^4)}_{\text{radia\c{c}\~ao, frente}}
+-\underbrace{\varepsilon\sigma A\,(T^4-T_{amb}^4)}_{\text{radia\c{c}\~ao, verso}}
+\end{equation}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+  \node[bloco,minimum width=4.2cm,minimum height=2.0cm,draw=azul,fill=azul!8] (m) at (0,0)
+     {\textbf{M\'odulo a $T$}\\{\scriptsize $m c_p\,dT/dt$ = soma dos fluxos}};
+  \node[dest,minimum width=2.6cm] (sol) at (-5.6,2.0) {Sol absorvido\\{\scriptsize $\alpha A G$}};
+  \node[aviso,minimum width=2.6cm] (el) at (-5.6,0) {Eletricidade\\{\scriptsize $P_{el}$ (n\~ao vira calor)}};
+  \node[bloco,minimum width=2.6cm] (cv) at (5.6,2.0) {Convec\c{c}\~ao\\{\scriptsize $h_c\,2A\,(T-T_{amb})$}};
+  \node[bloco,minimum width=2.6cm] (rf) at (5.6,0) {Radia\c{c}\~ao frente\\{\scriptsize para o c\'eu ($T_{c\acute eu}$)}};
+  \node[bloco,minimum width=2.6cm] (rv) at (5.6,-2.0) {Radia\c{c}\~ao verso\\{\scriptsize para o solo ($T_{amb}$)}};
+  \draw[seta] (sol) -- node[rot,above]{+} (m.north west);
+  \draw[seta] (m.west) -- node[rot,above]{$-$} (el);
+  \draw[seta] (m.north east) -- node[rot,above]{$-$} (cv);
+  \draw[seta] (m.east) -- node[rot,above]{$-$} (rf);
+  \draw[seta] (m.south east) -- node[rot,below]{$-$} (rv);
+\end{tikzpicture}
+\caption{Fluxos de energia do modelo t\'ermico. A radia\c{c}\~ao de onda longa da frente troca com o
+c\'eu (frio); a do verso, com o solo (perto de $T_{amb}$).}
+\label{fig:termico}
+\end{figure}
+
+\begin{center}\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+Termo & Significado f\'isico & Valor \\ \midrule
+$\alpha$ & Fra\c{c}\~ao da luz absorvida & 0,9 \\
+$P_{el}$ & Energia que sai como eletricidade, n\~ao aquece & vem da simula\c{c}\~ao \\
+$h_c$ & Convec\c{c}\~ao de Watmuff: $k_h(2{,}8+3{,}0\,v)$ & $k_h$ calibrado \\
+$2A$ & A convec\c{c}\~ao age nas duas faces & $A=0{,}82$\,m$^2$ \\
+$\varepsilon$ & Emissividade do vidro & 0,85 \\
+$T_{c\acute eu}$ & Temperatura efetiva do c\'eu (Swinbank): $0{,}0552\,T_{amb}^{1{,}5}$ & $\approx277$\,K com $T_{amb}=293$\,K \\
+$m c_p$ & Capacidade t\'ermica por \'area: massa $\cdot$ 840\,J/(kg\,K) $/$ \'area & $\approx9{,}1$\,kJ/(m$^2$K) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\codigointeiro{termico/termico_dTdt.m}{o balan\c{c}o de energia como fun\c{c}\~ao $dT/dt$.}{lst:termico}
+
+\begin{logica}
+\begin{enumerate}
+\item \texttt{hc = kh*(2.8 + 3.0*vw)}: coeficiente de convec\c{c}\~ao; \texttt{At = 2*A} porque o ar toca as duas faces.
+\item \texttt{Tceu = 0.0552*Tamb\^{}1.5}: temperatura efetiva do c\'eu; \'e a que a face da frente ``enxerga''.
+\item \texttt{Q\_sol}, \texttt{Q\_conv}, \texttt{Q\_rad\_frente}, \texttt{Q\_rad\_tras}: cada fluxo em watts.
+\item \texttt{dTdt = (Q\_sol - Pel - Q\_conv - Q\_rad)/(mcp\_area*A)}: o saldo dividido pela capacidade t\'ermica total em J/K.
+\end{enumerate}
+\end{logica}
+
+Duas escolhas merecem explica\c{c}\~ao (D11):
+\begin{itemize}
+\item \textbf{Watmuff, n\~ao McAdams.} O coeficiente de McAdams ($5{,}7+3{,}8v$) j\'a inclui a
+ radia\c{c}\~ao. Como o c\'odigo calcula a radia\c{c}\~ao \`a parte, usar McAdams contaria a radia\c{c}\~ao duas vezes.
+\item \textbf{Frente v\^e o c\'eu, verso v\^e o solo.} Com tudo irradiando para o c\'eu, a calibra\c{c}\~ao
+ pelo NMOT exigia $k_h=0{,}33$, valor irreal.
+\end{itemize}
+A capacidade t\'ermica vem da massa do datasheet (8,9\,kg): o vidro \'e 70 a 75\,\% da massa e tem
+$c_p\approx840$\,J/(kg\,K); alum\'inio ($\sim$900) e pol\'imeros (1200 a 1500) s\~ao fra\c{c}\~oes menores.
+
+\subsection{Calibra\c{c}\~ao pelo NMOT}
+
+O \'unico par\^ametro livre \'e $k_h$. Ele \'e ajustado para reproduzir o \textbf{NMOT}, publicado no
+datasheet como 45\,$^\circ$C, nas condi\c{c}\~oes $G=800$\,W/m$^2$, $T_{amb}=20\,^\circ$C, vento de
+1\,m/s, m\'odulo no MPP.
+
+\codigointeiro{termico/calibrar_nmot.m}{busca do $k_h$ que zera $dT/dt$ em 45\,$^\circ$C.}{lst:nmot}
+
+\begin{logica}
+\begin{enumerate}
+\item Pot\^encia el\'etrica no NMOT estimada pelo datasheet:
+ $P_{el}=P_{max}\cdot0{,}8\cdot(1+\gamma_P(45-25))=160\cdot0{,}8\cdot0{,}92\approx117{,}8$\,W.
+\item Em regime permanente $dT/dt=0$. \texttt{fzero} procura em $[0{,}1;\,10]$ o $k_h$ que zera
+ \texttt{balanco\_com\_kh} em $T=45\,^\circ$C.
+\item Resultado: $\boldsymbol{k_h=0{,}79}$.
+\end{enumerate}
+\end{logica}
+
+\begin{resultado}
+\textbf{Conferindo \`a m\~ao.} Com $k_h=0{,}79$ e vento de 1\,m/s, $h_c\approx4{,}6$\,W/(m$^2$K). Em
+$T=45\,^\circ$C: sol absorvido $\approx590$\,W; el\'etrico $\approx118$\,W; convec\c{c}\~ao $\approx188$\,W;
+radia\c{c}\~ao frente $\approx172$\,W; radia\c{c}\~ao verso $\approx113$\,W. Saldo:
+$590-118-188-172-113\approx0$.
+
+\textbf{Constante de tempo.} Capacidade total $9{,}1\text{ kJ/(m}^2\text{K)}\times0{,}82\text{ m}^2\approx7{,}5$\,kJ/K.
+A perda cresce $\approx17{,}7$\,W por kelvin. Logo $\tau\approx7{,}5/17{,}7\approx7$\,min, na faixa t\'ipica de 5 a 7\,min.
+\end{resultado}
+
+\begin{atencao}[: cuidado num\'erico]
+Com vento de 10\,m/s a menor constante de tempo cai para $\sim$2,3\,min. No Euler expl\'icito o passo
+precisa ser menor que $2\tau$ (na pr\'atica bem menor que 1\,min). A simula\c{c}\~ao quase-est\'atica
+usa passo $\Ta\approx31$\,ms (est\'avel de sobra); a din\^amica usa \texttt{ode15s}. O vento do PVGIS
+\'e a 10\,m de altura e \'e convertido para o vento junto ao m\'odulo no c\'odigo do cen\'ario.
+\end{atencao}

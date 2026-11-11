@@ -18,11 +18,6 @@ cen.G = @(t) [1000 1000 1000 - 600 * (t >= tDegrau)];
 cen.Tamb = @(t) 298.15;  cen.vw = @(t) 1;  cen.t_fim = 4;
 tc.TestData = struct('p', p, 'pc', pc, 'ctl', ctl, 'cen', cen, ...
     'pt', parametros_termicos(datasheet_painel('ztp160m')), 'cfg', config_mppt(p));
-% Painel real (ZTP-160M) para a janela representativa
-pz = parametros_painel('ztp160m');
-pcz = parametros_conversor(pz, 12);
-[ctlz, ~] = projeto_pi(pz, pcz);
-tc.TestData.ztp = struct('p', pz, 'pc', pcz, 'ctl', ctlz, 'cfg', config_mppt(pz));
 end
 
 function [rq, rd] = compara(tc, alg)
@@ -69,14 +64,18 @@ function test_energia_pso_janela_representativa(tc)
 % ZTP-160M, 1000 W/m^2 uniforme ate ~5 s, depois [1000 1000 400]; degrau
 % numa fronteira de periodo Ta (mesmo motivo do cenario de 4 s).
 % Medido: -0,32 % (E din = 1956,8 J, E qe = 1950,6 J; eta 0,976 x 0,973).
-d = tc.TestData;  z = d.ztp;
-tDegrau = round(5 / z.ctl.Ta) * z.ctl.Ta;
+d = tc.TestData;
+% Painel real (ZTP-160M), montado aqui porque so este teste o usa
+p = parametros_painel('ztp160m');
+pc = parametros_conversor(p, 12);
+ctl = projeto_pi(p, pc);
+tDegrau = round(5 / ctl.Ta) * ctl.Ta;
 cen.G = @(t) [1000 1000 1000 - 600 * (t >= tDegrau)];
 cen.Tamb = @(t) 298.15;  cen.vw = @(t) 1;  cen.t_fim = 20;
-cfg = z.cfg;  cfg.seed = 1;
+cfg = config_mppt(p);  cfg.seed = 1;
 op = struct('termico', true, 'perdas', false);
-rd = sim_dinamica(cen, @mppt_pso, cfg, z.ctl, z.p, z.pc, d.pt, op);
-rq = sim_quase_estatica(cen, @mppt_pso, cfg, z.ctl, z.p, z.pc, d.pt, op);
+rd = sim_dinamica(cen, @mppt_pso, cfg, ctl, p, pc, d.pt, op);
+rq = sim_quase_estatica(cen, @mppt_pso, cfg, ctl, p, pc, d.pt, op);
 fprintf('janela 20 s, PSO: E din = %.3f J, E qe = %.3f J, dif = %+.3f %%\n', ...
     rd.E, rq.E, 100 * (rq.E / rd.E - 1));
 verifyEqual(tc, rq.E, rd.E, 'RelTol', 0.01);

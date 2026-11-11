@@ -1,0 +1,102 @@
+\section{Cen\'arios: EN 50530 e o dia em Florian\'opolis}\label{sec:cenarios}
+
+Arquivos: \arq{cenarios/cenario_constante.m}, \arq{perfil_en50530.m}, \arq{dia_florianopolis.m}, \arq{aplicar_sombras.m}, \arq{baixar_pvgis.m},
+\arq{data/en50530_rampas.csv}, \arq{data/clima/pvgis_floripa_2020.csv}. Todo cen\'ario \'e uma \emph{struct} com quatro campos, chamados do mesmo jeito pelos simuladores:
+\texttt{cen.G(t)} (vetor $1\times N_{sub}$ com a irradi\^ancia de cada subm\'odulo), \texttt{cen.Tamb(t)}, \texttt{cen.vw(t)} (vento) e \texttt{cen.t\_fim}. Isso permite trocar o cen\'ario sem mudar a simula\c{c}\~ao.
+
+\subsection{Cen\'ario constante}
+
+\texttt{cenario\_constante(G, Tamb, vw, t\_fim)} devolve sempre os mesmos valores. \'E usado em testes e em experimentos curtos, como o E5.
+
+\subsection{Perfil din\^amico da EN 50530}
+
+A EN 50530 \'e a norma que define como medir a efici\^encia din\^amica de um MPPT. Ela aplica ao inversor uma sequ\^encia de rampas trapezoidais de irradi\^ancia, de lentas
+(0,5\,W/m$^2$/s) a r\'apidas (100\,W/m$^2$/s). A irradi\^ancia \'e \emph{uniforme}: a norma testa o MPPT sem sombreamento parcial.
+
+\textbf{A fonte (D5).} O texto da norma (CENELEC) \'e pago e n\~ao foi consultado. As tabelas B.2, B.3 e B.4 foram transcritas do relat\'orio de ensaio T\"UV Rheinland
+n.$^\circ$ CN21VE2D 001 (tabela 4.4, ``Dynamic MPPT Efficiency'', p.~15 e 16). Os valores conferem aritmeticamente com as dura\c{c}\~oes impressas:
+dura\c{c}\~ao $=$ repeti\c{c}\~oes $\cdot(2\,\text{rampa}+2\,\text{patamar})+$ espera. Uma inconsist\^encia foi encontrada e documentada no CSV: na B.4 o relat\'orio imprime rampa de 980\,s, mas
+$(100-10)/0{,}1=900$\,s, e o c\'odigo calcula a rampa pela inclina\c{c}\~ao.
+
+\begin{center}\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+Sequ\^encia & Faixa de $G$ [W/m$^2$] & Inclina\c{c}\~oes [W/m$^2$/s] \\ \midrule
+B.2 & 100 a 500 & 0,5 / 1 / 2 / 3 / 5 / 7 / 10 / 14 / 20 / 30 / 50 \\
+B.3 & 300 a 1000 & 10 / 14 / 20 / 30 / 50 / 100 \\
+B.4 & 10 a 100 & 0,1 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Patamares de 10\,s (30\,s na B.4), espera de 300\,s no in\'icio de cada linha e de 1 a 10 repeti\c{c}\~oes; dura\c{c}\~ao total de cerca de 7\,h.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[x=0.55cm,y=0.9cm]
+  \draw[->,thick,cinza] (0,0) -- (14.5,0) node[right,font=\scriptsize]{$t$};
+  \draw[->,thick,cinza] (0,0) -- (0,3.2) node[above,font=\scriptsize]{$G$};
+  \draw[very thick,azul] (0,0.6) -- (2,0.6) -- (4,2.6) -- (6,2.6) -- (8,0.6) -- (10,0.6) -- (12,2.6) -- (14,2.6);
+  \node[rot] at (1,0.25) {espera};
+  \node[rot] at (3,1.9) {rampa};
+  \node[rot] at (5,3.0) {patamar alto};
+  \node[rot] at (7,1.9) {rampa};
+  \node[rot] at (9,0.25) {patamar baixo};
+  \node[rot,left] at (0,0.6) {$G_{baixo}$};
+  \node[rot,left] at (0,2.6) {$G_{alto}$};
+\end{tikzpicture}
+\caption{Estrutura de cada linha da tabela: espera em $G_{baixo}$ e depois um n\'umero de trap\'ezios (rampa, patamar alto, rampa, patamar baixo).}
+\label{fig:trapezio}
+\end{figure}
+
+\codigointeiro{cenarios/perfil_en50530.m}{monta $G(t)$ como lista de pontos interpolada linearmente.}{lst:en50530}
+
+\begin{logica}
+\begin{enumerate}
+\item L\^e o CSV (\texttt{readtable} com coment\'arios \texttt{\%}) e valida: espera $>1$\,ms, patamar $>0$, $G_{alto}>G_{baixo}$.
+\item Para cada linha: o degrau inicial leva 1\,ms (o interpolador exige instantes estritamente crescentes), depois a espera; a rampa dura $(G_{alto}-G_{baixo})/\text{inclina\c{c}\~ao}$.
+\item Cada repeti\c{c}\~ao adiciona 4 pontos (sobe, patamar alto, desce, patamar baixo).
+\item \texttt{griddedInterpolant} interpola linearmente; $G$ \'e a mesma em todos os subm\'odulos. $T_{amb}=25\,^\circ$C e vento 1\,m/s, porque a norma separa o MPPT do efeito t\'ermico.
+\end{enumerate}
+\end{logica}
+
+\subsection{O dia em Florian\'opolis}
+
+Para o dia real o trabalho usa dados do \textbf{PVGIS} (base PVGIS-SARAH3), no ponto de lat.\ $-27{,}595^\circ$, lon.\ $-48{,}548^\circ$ e altitude 34\,m. O m\'odulo est\'a inclinado a $27^\circ$ e
+voltado para o norte. O dia escolhido foi \textbf{26/01/2020} (c\'eu claro de ver\~ao). \texttt{dia\_florianopolis} faz:
+
+\begin{enumerate}
+\item L\^e o CSV do PVGIS (tem cabe\c{c}alho e rodap\'e de texto: s\'o as linhas que come\c{c}am com a data \texttt{yyyyMMdd:HHmm} s\~ao dados).
+\item Converte de UTC para a hora local (UTC$-3$), para $t=0$ ser a meia-noite local.
+\item Usa as colunas $G(i)$ (irradi\^ancia no plano), $T_{2m}$ (temperatura do ar) e $WS_{10m}$ (vento a 10\,m).
+\item Interpola as amostras hor\'arias de forma suave (\texttt{pchip}).
+\item Converte o vento de 10\,m para o vento junto ao m\'odulo ($\sim$2\,m) pela lei de pot\^encia de expoente $1/7$: fator $(2/10)^{1/7}\approx0{,}79$.
+\item Define a janela de sol: instantes com $G>5$\,W/m$^2$.
+\end{enumerate}
+
+\subsection{Nuvens e sombras sint\'eticas (D6)}
+
+Os dados hor\'arios n\~ao t\^em transit\'orios r\'apidos nem sombras. Por isso foram criados eventos \textbf{sint\'eticos}, declarados como tais no relat\'orio e gravados em \arq{resultados/e7_eventos.csv}.
+
+\begin{center}\small
+\begin{tabular}{@{}llllll@{}}
+\toprule
+Hora & Dura\c{c}\~ao & Evento & Subm\'odulo & Fator & Rampa \\ \midrule
+10:30 a 10:36 & 6\,min & Nuvem & Todos & 0,4 & 20\,s \\
+11:15 a 11:16:12 & 72\,s & Nuvem & Todos & 0,3 & 10\,s \\
+14:00 a 14:45 & 45\,min & Sombra de poste & 3 & 0,3 & 60\,s \\
+14:45 a 15:00 & 15\,min & Sombra de poste & 2 & 0,3 & 60\,s \\
+15:00 a 15:30 & 30\,min & Poste (mais fraca) & 3 & 0,5 & 60\,s \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+As duas nuvens cobrem o m\'odulo todo e testam o rastreamento sob mudan\c{c}a r\'apida de luz. A sombra de poste anda sobre o m\'odulo e cria, com um subm\'odulo sombreado, uma curva
+com dois picos: o trecho em que P\&O e InC podem ficar presos e o PSO deve ganhar. Nas transi\c{c}\~oes de 60\,s os dois eventos se sobrep\~oem.
+
+\codigointeiro{cenarios/aplicar_sombras.m}{multiplica $G$ por um fator com rampas lineares.}{lst:sombras}
+
+\begin{logica}
+A vari\'avel \texttt{a} \'e um trap\'ezio no tempo: rampa de subida (de 0 a 1 em \texttt{rampa\_s} segundos a partir de \texttt{t\_ini}) menos rampa de descida (que come\c{c}a em \texttt{t\_fim}).
+O fator aplicado \'e $f=1-(1-\text{fator})\,a$. Com \texttt{sub = 0} afeta todos os subm\'odulos (nuvem); com \texttt{sub = j}, s\'o o subm\'odulo $j$ (poste). \texttt{Gbase} \'e avaliada uma \'unica vez por chamada.
+\end{logica}

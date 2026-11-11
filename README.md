@@ -15,7 +15,7 @@ O relatório completo está em [`relatorio/relatorio.pdf`](relatorio/relatorio.p
 
 | Bloco | Modelo |
 |---|---|
-| Painel | 2 diodos (convenção de Ishaque), parâmetros extraídos do datasheet por Levenberg–Marquardt; R_p(G) de De Soto |
+| Painel | 2 diodos (convenção de Ishaque), parâmetros extraídos do datasheet com `fsolve`; R_p(G) de De Soto |
 | Sombreamento | 3 submódulos com irradiâncias diferentes e diodos de bypass (Newton com jacobiano analítico) |
 | Térmico | Balanço de energia de 1ª ordem (convecção de Watmuff, radiação para céu e solo), calibrado pelo NMOT |
 | Conversor | Buck-boost inversor: modelo médio com perdas, validado contra o modelo chaveado |
@@ -48,7 +48,6 @@ matlab/
   mppt/          # P&O, InC, PSO e rastreamento estático
   simulacao/     # simulação dinâmica (EDO), quase-estática e oráculo do máximo global
   cenarios/      # perfil EN 50530, dia do PVGIS, eventos de sombra
-  numerico/      # Levenberg–Marquardt
   experimentos/  # exp01 ... exp08 (geram resultados/ e relatorio/figs/)
   tests/         # testes (matlab.unittest)
 data/
@@ -63,7 +62,7 @@ docs/superpowers/plans/  # plano de execução e registro das decisões (D1–D1
 
 ## Como rodar
 
-Requer apenas o **MATLAB base** (testado no R2026b, sem toolboxes).
+Requer o **MATLAB** com a **Optimization Toolbox** (só para o `fsolve` da extração de parâmetros). Testado no R2026b.
 
 ```matlab
 cd matlab

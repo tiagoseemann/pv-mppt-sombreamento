@@ -1,0 +1,135 @@
+\section{Modelo do painel fotovoltaico}\label{sec:painel}
+
+Arquivos: \arq{painel/celula_params.m}, \arq{kcl_modulo.m}, \arq{parametros_painel.m},
+\arq{datasheet_painel.m}, \arq{curva_pv.m}. O painel \'e modelado como um circuito el\'etrico
+equivalente.
+
+\subsection{O circuito equivalente de 2 diodos}
+
+Uma c\'elula solar se comporta como uma fonte de corrente (a luz gera el\'etrons) em paralelo com
+dois diodos (perdas por recombina\c{c}\~ao), uma resist\^encia em paralelo $R_p$ (fuga) e uma
+resist\^encia em s\'erie $R_s$ (contatos e metaliza\c{c}\~ao).
+
+\begin{figure}[htbp]
+\centering
+\begin{circuitikz}[scale=0.9,transform shape]
+  \draw (0,0) to[isource,l=$\Ipv$] (0,3) -- (2,3);
+  \draw (2,3) to[D,l=$D_1$] (2,0);
+  \draw (2,3) -- (4,3) to[D,l=$D_2$] (4,0);
+  \draw (4,3) -- (6,3) to[R,l=$R_p$] (6,0);
+  \draw (6,3) to[R,l=$R_s$] (8.6,3) to[short,-o] (9.6,3);
+  \draw (0,0) -- (9.6,0) to[short,-o] (9.6,0);
+  \draw[<->,>=Stealth] (10,0.1) -- node[right]{$V$} (10,2.9);
+  \node[gray,font=\scriptsize] at (4.8,-0.6) {$V_d$ \'e a tens\~ao nos tr\^es ramos em paralelo; $V=V_d-R_sI$};
+\end{circuitikz}
+\caption{Circuito equivalente de uma c\'elula (ou de um grupo de c\'elulas em s\'erie) no modelo
+de 2 diodos.}
+\label{fig:circuito2d}
+\end{figure}
+
+A lei das correntes (KCL) d\'a a equa\c{c}\~ao do m\'odulo:
+\begin{equation}\label{eq:2d}
+I=\Ipv-I_{01}\!\left(e^{V_d/(a_1V_t)}-1\right)-I_{02}\!\left(e^{V_d/(a_2V_t)}-1\right)-\frac{V_d}{R_p},
+\qquad V_d=V+R_sI .
+\end{equation}
+
+\begin{itemize}
+\item $\Ipv$: fotocorrente, proporcional \`a luz; \'e o que o painel ``gera''.
+\item $I_{01},I_{02}$: correntes de satura\c{c}\~ao. O diodo 1 representa a difus\~ao de
+ portadores ($a_1=1$); o diodo 2, a recombina\c{c}\~ao na regi\~ao de dep\'osito ($a_2=1{,}2$).
+\item $V_t=kT/q$: tens\~ao t\'ermica ($\approx25{,}7$\,mV por c\'elula a 25\,$^\circ$C). No m\'odulo
+ multiplica-se pelo n\'umero de c\'elulas em s\'erie.
+\item $V_d/R_p$: corrente de fuga pela resist\^encia paralela.
+\end{itemize}
+
+O c\'odigo devolve o \emph{res\'iduo} $F=0$ quando o ponto $(V,I)$ est\'a sobre a curva
+(C\'odigo~\ref{lst:kcl}). Essa forma \emph{expl\'icita} evita resolver a equa\c{c}\~ao impl\'icita
+$I(V)$ em todo lugar: basta testar se um ponto a satisfaz. Isso torna a extra\c{c}\~ao de
+par\^ametros (Cap\'itulo~\ref{sec:extracao}) simples.
+
+\codigointeiro{painel/kcl_modulo.m}{res\'iduo da equa\c{c}\~ao do m\'odulo e inclina\c{c}\~ao $dI/dV$.}{lst:kcl}
+
+\begin{logica}
+\begin{enumerate}
+\item O m\'odulo todo \'e tratado como \emph{um} grupo de $N_s$ c\'elulas em s\'erie
+ (\texttt{q.Ncel = p.Ns}). As grandezas dependentes de $G$ e $T$ v\^em de \arq{celula_params}.
+\item \texttt{Vd = V + Rs\_s*I}: tens\~ao na jun\c{c}\~ao = tens\~ao do terminal mais a queda em $R_s$.
+\item \texttt{F} \'e a eq.~\eqref{eq:2d} passada toda para um lado: fotocorrente menos os dois
+ diodos menos a fuga menos a corrente de sa\'ida. Se $F=0$, o ponto est\'a na curva.
+\item \texttt{g} \'e a condut\^ancia total da jun\c{c}\~ao, $g=-\partial I_c/\partial V_d$.
+\item \texttt{dIdV}: por deriva\c{c}\~ao impl\'icita de $F(V,I)=0$,
+ $\dfrac{dI}{dV}=-\dfrac{\partial F/\partial V}{\partial F/\partial I}=-\dfrac{g}{1+R_sg}$.
+ Essa inclina\c{c}\~ao \'e usada na condi\c{c}\~ao $dP/dV=0$ da extra\c{c}\~ao.
+\end{enumerate}
+\end{logica}
+
+\subsection{Depend\^encia com irradi\^ancia e temperatura}
+
+\arq{celula_params(G,T,p)} concentra tudo o que muda com $G$ (W/m$^2$) e $T$ (K); a f\'isica fica
+num \'unico lugar.
+
+\codigointeiro{painel/celula_params.m}{grandezas do grupo de c\'elulas em fun\c{c}\~ao de $G$ e $T$.}{lst:celula}
+
+\begin{center}\small
+\begin{tabularx}{\textwidth}{@{}l>{\raggedright\arraybackslash}p{6.4cm}>{\raggedright\arraybackslash}X@{}}
+\toprule
+Grandeza & Lei usada & Intui\c{c}\~ao \\ \midrule
+Fotocorrente & $\Ipv=\dfrac{G}{G_n}\big(I_{pv,n}+K_i(T-T_n)\big)$ & Mais luz, mais corrente; calor aumenta um pouco a corrente \\[6pt]
+Satura\c{c}\~ao & $I_{0k}=I_{0k,n}\left(\dfrac{T}{T_n}\right)^{3}\exp\!\left[\dfrac{E_g}{k}\Big(\dfrac1{T_n}-\dfrac1T\Big)\right]$ & Diodos ``vazam'' mais a quente; por isso $V_{oc}$ cai com $T$ \\[8pt]
+Tens\~ao t\'ermica & $V_t=kT/q$ & Cresce com $T$ \\
+Resist\^encia paralela & $R_p(G)=R_{p,ref}\,G_n/G$ & Ver abaixo \\
+Resist\^encia s\'erie & $N_{cel}R_s$ & C\'elulas em s\'erie somam resist\^encias \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\begin{atencao}[: gap efetivo]
+Na teoria da jun\c{c}\~ao, $E_g$ \'e o gap do sil\'icio (1,12\,eV). Com esse valor o modelo previa
+$K_v=-0{,}106$\,V/K para o KC200GT, contra $-0{,}123$\,V/K do datasheet. Por isso $E_g$ virou um
+par\^ametro \emph{efetivo}, ajustado pelo $K_v$ medido. Ele absorve efeitos que a lei simples
+ignora.
+\end{atencao}
+
+\subsubsection{Por que $R_p$ depende da irradi\^ancia (D10)}
+
+Com $R_p$ constante, a fuga $V/R_p$ quase n\~ao muda com a luz, mas a fotocorrente cai
+proporcionalmente a $G$. Em 200\,W/m$^2$ a fuga vira uma fra\c{c}\~ao enorme da corrente gerada:
+no ajuste do ZTP-160M ($R_p\approx41\,\Omega$) isso previa \textbf{26\,\% de perda de efici\^encia
+em 200\,W/m$^2$}, contra 3 a 5\,\% t\'ipicos de m\'odulos monocristalinos. A lei de De Soto, Klein
+e Beckman (2006) faz a fuga escalar com a luz. Em $G=G_n$ nada muda, ent\~ao a extra\c{c}\~ao
+(toda em STC) n\~ao \'e afetada. Um subm\'odulo no escuro ($G=0$) d\'a $R_p=\infty$ e fuga zero,
+sem NaN, pois $V_d/\infty=0$.
+
+\subsection{Os dados de cat\'alogo}
+
+\codigo{painel/datasheet_painel.m}{23}{41}{dados do ZTP-160M, com as convers\~oes de \%/K para A/K e V/K.}{lst:ds}
+
+\begin{center}\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+Dado (ZTP-160M, datasheet v4.3) & Valor \\ \midrule
+$I_{sc}$ / $V_{oc}$ & 9,02\,A / 22,64\,V \\
+$I_{mp}$ / $V_{mp}$ & 8,20\,A / 19,57\,V \\
+$P_{max}$ & 160\,W (mas $V_{mp}I_{mp}=160{,}47$\,W: o cat\'alogo arredonda) \\
+$K_i$ & $+0{,}05$\,\%/K de $I_{sc}$ \\
+$K_v$ & $-0{,}34$\,\%/K de $V_{oc}$ \\
+$\gamma_P$ (coef.\ de $P_{max}$) & $-0{,}4$\,\%/K (usado s\'o para validar) \\
+Arranjo & 33 c\'elulas, 3 subm\'odulos de 11 (hip\'otese: 1 bypass por coluna) \\
+\'Area, massa, NMOT & 0,82\,m$^2$, 8,9\,kg, 45\,$^\circ$C \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+O fator de idealidade do modelo de 1 diodo \'e $a=1{,}1$. Para o KC200GT, Villalva usa 1,3, mas o
+ZTP-160M \'e monocristalino com fator de forma 0,78 e 1,3 n\~ao o alcan\c{c}a sem $R_s\le0$. O
+valor 1,1 \'e o maior, em passos de 0,1, que ajusta.
+
+\subsection{A curva P-V}
+
+\arq{curva_pv(G,T,p,nPts)} varre a tens\~ao de 0 at\'e uma estimativa folgada de $V_{oc}$ e, a
+cada tens\~ao, resolve a corrente do m\'odulo (com sombra, por \arq{painel_sombreado},
+Cap\'itulo~\ref{sec:sombra}). Cada ponto usa a solu\c{c}\~ao do anterior como chute inicial
+(\emph{warm start}), o que acelera o Newton. O resultado traz as curvas I-V e P-V, o m\'aximo
+global $(V_{mp},P_{mp})$ e a tabela de todos os m\'aximos locais (\texttt{islocalmax}).
+
+\codigo{painel/curva_pv.m}{12}{33}{varredura de tens\~ao com \emph{warm start} e detec\c{c}\~ao dos picos.}{lst:curvapv}

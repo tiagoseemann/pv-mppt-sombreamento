@@ -12,7 +12,6 @@ clear; clc; close all;
 setup_path();
 
 pasta_res = fullfile(raiz_projeto(), 'resultados');
-if ~isfolder(pasta_res), mkdir(pasta_res); end
 
 ds = datasheet_painel('ztp160m');
 p2 = parametros_painel('ztp160m');           % 2 diodos (modelo deste trabalho)

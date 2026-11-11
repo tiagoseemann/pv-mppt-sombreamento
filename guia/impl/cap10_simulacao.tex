@@ -1,0 +1,164 @@
+\section{Simula\c{c}\~ao: din\^amica, quase-est\'atica e or\'aculo}\label{sec:sim}
+
+Arquivos: \arq{simulacao/sim_dinamica.m}, \arq{sim_quase_estatica.m}, \arq{oraculo_pmax.m}, \arq{oraculo_com_cache.m}. O sistema tem escalas
+de tempo muito diferentes e simular tudo no detalhe m\'aximo \'e invi\'avel. A solu\c{c}\~ao foi uma \textbf{hierarquia de modelos}, cada um usado onde cabe.
+
+\subsection{As escalas de tempo}
+
+\begin{center}\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+Fen\^omeno & Escala de tempo \\ \midrule
+Chaveamento do conversor & 50\,$\mu$s ($f_s=20$\,kHz) \\
+Resson\^ancia LC & $\sim$4\,ms (240\,Hz) \\
+La\c{c}o do PI (acomoda\c{c}\~ao) & $\sim$20\,ms \\
+Per\'iodo do MPPT $\Ta$ & 31\,ms \\
+T\'ermico do painel & $\sim$7\,min \\
+Dia & 13\,h de sol \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+O t\'ermico \'e milhares de vezes mais lento que o MPPT, e o MPPT \'e mais lento que o PI. Essa separa\c{c}\~ao permite os modelos reduzidos.
+
+\subsection{A hierarquia de modelos}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+  \node[bloco,minimum width=4.4cm,minimum height=1.7cm] (ch) at (0,0) {\textbf{Chaveado}\\{\scriptsize Euler, $T_s/200$}\\{\scriptsize 1 a 2\,s de CPU por 6\,ms}};
+  \node[ctrl,minimum width=4.4cm,minimum height=1.7cm] (me) at (5.4,0) {\textbf{M\'edio din\^amico}\\{\scriptsize EDO de 4 estados, \texttt{ode15s}}\\{\scriptsize 1 a 2,5\,s de CPU por s}};
+  \node[dest,minimum width=4.4cm,minimum height=1.7cm] (qe) at (10.8,0) {\textbf{Quase-est\'atico}\\{\scriptsize regime a cada $\Ta$}\\{\scriptsize $\sim$65\,s de CPU por hora}};
+  \draw[seta] (ch) -- node[rot,above]{valida (E3)} (me);
+  \draw[seta] (me) -- node[rot,above]{valida (D16)} (qe);
+  \node[rot,anchor=north,text width=4.2cm,align=center] at (0,-1.1) {s\'o ms};
+  \node[rot,anchor=north,text width=4.2cm,align=center] at (5.4,-1.1) {transit\'orios, E6b};
+  \node[rot,anchor=north,text width=4.2cm,align=center] at (10.8,-1.1) {EN 50530 e o dia inteiro (E6, E7, E8)};
+\end{tikzpicture}
+\caption{Cada modelo mais simples \'e conferido contra o mais detalhado, no intervalo em que ambos rodam.}
+\label{fig:hierarquia}
+\end{figure}
+
+\subsection{Simula\c{c}\~ao din\^amica}
+
+\textbf{Estado.} $x=[\vpv;\,i_L;\,\xi;\,T]$: tens\~ao do capacitor de entrada, corrente do indutor, integral do erro do PI e temperatura das c\'elulas. A corrente do painel
+$I$ \emph{n\~ao} \'e estado: o painel n\~ao tem din\^amica pr\'opria nessa escala, e $I$ \'e a solu\c{c}\~ao das equa\c{c}\~oes alg\'ebricas do m\'odulo (Cap\'itulo~\ref{sec:sombra}) para a tens\~ao
+$\vpv$ do momento. O \texttt{ode15s} integra a EDO reduzida $\dot x=f(x,I(x))$.
+
+\begin{atencao}[: por que EDO reduzida e n\~ao DAE (D15)]
+A formula\c{c}\~ao original era uma DAE com matriz de massa singular, como em \arq{sim_medio_aberta}. Ela falhou em 9 de 36 casos de teste, nos degraus grandes do PSO sob sombra: o
+\texttt{ode15s} reaproveita o jacobiano e a condut\^ancia dos diodos varia exponencialmente ($10^{-2}$ a $10^{2}$\,S). A EDO reduzida, com o painel resolvido por Newton a cada
+avalia\c{c}\~ao, teve 0 falhas em 36 casos e efici\^encias iguais em 4 d\'igitos. O pre\c{c}o \'e ficar 2 a 4 vezes mais lenta.
+\end{atencao}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=0.6cm]
+  \node[bloco,minimum width=4.3cm] (p1) at (0,0) {\textbf{1.} Or\'aculo no in\'icio\\{\scriptsize $P_{g0}$ com $G$ e $T$ de agora}};
+  \node[bloco,minimum width=4.3cm] (p2) at (5.3,0) {\textbf{2.} Integra a EDO\\{\scriptsize \texttt{ode15s}, $t_0$ a $t_0+\Ta$, $\Vref$ fixo}};
+  \node[bloco,minimum width=4.3cm] (p3) at (10.6,0) {\textbf{3.} Corrente do painel\\{\scriptsize Newton nos pontos; soma $E$}};
+  \node[bloco,minimum width=4.3cm] (p4) at (10.6,-2.2) {\textbf{4.} Mede $V$ e $I$\\{\scriptsize m\'edia dos \'ultimos 20\,\% de $\Ta$}};
+  \node[bloco,minimum width=4.3cm] (p5) at (5.3,-2.2) {\textbf{5.} Or\'aculo no fim\\{\scriptsize $E_g\mathrel{+}=\frac{P_{g0}+P_{g1}}{2}\Ta$}};
+  \node[ctrl,minimum width=4.3cm] (p6) at (0,-2.2) {\textbf{6.} MPPT\\{\scriptsize recebe $V,I$; devolve novo $\Vref$}};
+  \draw[seta] (p1) -- (p2);
+  \draw[seta] (p2) -- (p3);
+  \draw[seta] (p3) -- (p4);
+  \draw[seta] (p4) -- (p5);
+  \draw[seta] (p5) -- (p6);
+  \draw[seta] (p6) -- node[rot,left]{pr\'oximo per\'iodo} (p1);
+\end{tikzpicture}
+\caption{O la\c{c}o de \texttt{sim\_dinamica}, repetido a cada $\Ta$. No fim, $\eta=E/E_g$.}
+\label{fig:laco_sim}
+\end{figure}
+
+\codigo{simulacao/sim_dinamica.m}{132}{193}{o la\c{c}o amostrado: um intervalo $\Ta$ por itera\c{c}\~ao.}{lst:dinlaco}
+
+\begin{logica}
+\begin{enumerate}
+\item \texttt{t0}, \texttt{t1}: in\'icio e fim do per\'iodo. \texttt{oraculo\_com\_cache} avalia $P_{g0}$ na ponta inicial ($G$ lida $10^{-9}\Ta$ \emph{dentro} do intervalo: um degrau de $G$ na fronteira conta para o per\'iodo certo).
+\item \texttt{ode15s(f, [t0 t1], x, opts)}: integra com $\Vref$ constante (segurador de ordem zero), passando o jacobiano analítico.
+\item P\'os-processamento: para cada ponto aceito, resolve o painel com \emph{warm start} (aqui os pontos est\~ao em ordem, ent\~ao \'e seguro) e soma $E=\int \vpv I\,dt$ por trap\'ezio.
+\item \texttt{media\_janela}: m\'edia de $V$ e $I$ nos \'ultimos 20\,\% de $\Ta$, esperando o PI acomodar (Femia) e filtrando a oscila\c{c}\~ao residual.
+\item Or\'aculo na ponta final: $E_g\mathrel{+}=\frac{P_{g0}+P_{g1}}{2}\Ta$.
+\item \texttt{lei\_pi} e \texttt{verifica\_ccm} registram $d$ e se o conversor estava em CCM; por fim o MPPT devolve o novo \texttt{Vref}.
+\end{enumerate}
+\end{logica}
+
+\codigo{simulacao/sim_dinamica.m}{224}{260}{lado direito da EDO: PI, conversor, t\'ermico e bloqueio do diodo.}{lst:dinrhs}
+
+\begin{logica}
+\texttt{derivadas} monta $[\dot{\vpv};\dot i_L;\dot\xi;\dot T]$: \texttt{lei\_pi} d\'a $d$ e $\dot\xi$; \texttt{conversor\_medio\_rhs} d\'a $\dot{\vpv}$ e $\dot i_L$; \texttt{termico\_dTdt} d\'a $\dot T$ (com $G$ m\'edio dos
+subm\'odulos e a pot\^encia el\'etrica $\vpv I$ saindo do m\'odulo). O diodo bloqueia corrente reversa: se $i_L\le0$ e a derivada aponta para baixo, \'e zerada. \texttt{rhs} s\'o resolve o painel em $\vpv$ e chama \texttt{derivadas}.
+\end{logica}
+
+\textbf{Cuidados num\'ericos.}
+\begin{itemize}
+\item \textbf{Sem \emph{warm start} no lado direito}, de prop\'osito: o \texttt{ode15s} avalia fora de ordem e em passos que depois rejeita; guardar a \'ultima solu\c{c}\~ao poderia dar resultados que dependem dessa ordem.
+\item \textbf{Jacobiano pela regra da cadeia:} $\partial f/\partial x=\partial f/\partial x|_I+\partial f/\partial I\cdot\partial I/\partial x$. $dI/dv$ e $dI/dT$ v\^em de deriva\c{c}\~ao impl\'icita do res\'iduo do painel com o jacobiano anal\'itico, mais preciso que diferen\c{c}as finitas perto dos joelhos do bypass.
+\item \textbf{Descontinuidades} (satura\c{c}\~ao do PI, anti-windup, bloqueio do diodo): no jacobiano, o modo do PI e o estado do diodo s\~ao decididos uma vez e congelados nas avalia\c{c}\~oes perturbadas. N\~ao h\'a fun\c{c}\~oes de evento: o \texttt{ode15s} atravessa a descontinuidade rejeitando passos.
+\item \textbf{Passo m\'aximo} $\Ta/20$: v\'arios pontos na janela de medida e menor erro do trap\'ezio.
+\item \textbf{Pr\'e-condi\c{c}\~ao:} come\c{c}a com $G>0$; com $G=0$ o conversor n\~ao tem equil\'ibrio e a partida \'e recusada (\texttt{sim\_dinamica:inicioInviavel}).
+\item \textbf{Condi\c{c}\~ao inicial:} m\'odulo em equil\'ibrio t\'ermico com o conversor desligado; integrador do PI no valor que d\'a exatamente o $d$ de equil\'ibrio (partida sem tranco).
+\end{itemize}
+
+\subsection{Or\'aculo do m\'aximo global}
+
+A efici\^encia do MPPT \'e $\eta=E/E_g$, onde $E_g$ \'e a energia do pico global. Um MPPT preso num pico local deve aparecer com $\eta<1$.
+
+\codigointeiro{simulacao/oraculo_pmax.m}{pot\^encia m\'axima global do painel.}{lst:oraculo}
+
+\begin{logica}
+\begin{enumerate}
+\item \textbf{Varredura grossa} da curva P-V (150 pontos): descobre em que pico est\'a o m\'aximo global. Um otimizador local sozinho poderia parar no outro.
+\item \textbf{Refinamento com \texttt{fminbnd}} entre os vizinhos do melhor ponto da grade: dentro desse intervalo $P(V)$ tem um s\'o m\'aximo.
+\item De noite ($\max G<1$) devolve $P_g=0$. O refinamento nunca devolve menos que o melhor ponto da grade.
+\end{enumerate}
+\end{logica}
+
+\codigointeiro{simulacao/oraculo_com_cache.m}{o or\'aculo s\'o recalcula se $G$ ou $T$ mudaram.}{lst:cache}
+
+\subsection{Simula\c{c}\~ao quase-est\'atica}
+
+Em cada $\Ta$, trata-se o sistema como em \textbf{regime permanente}: a tens\~ao do painel j\'a \'e igual a $\Vref$ e a pot\^encia \'e $P=\Vref\cdot I(\Vref)$ durante o per\'iodo todo. N\~ao h\'a EDO
+el\'etrica para integrar.
+
+\codigo{simulacao/sim_quase_estatica.m}{142}{222}{o la\c{c}o do modelo quase-est\'atico.}{lst:qelaco}
+
+\begin{logica}
+\begin{enumerate}
+\item \textbf{Ponta inicial:} resolve o painel em \texttt{Vref} com $G$ e $T$ do in\'icio; o diodo impede corrente negativa (\texttt{Ia = max(Ia,0)}).
+\item \textbf{Or\'aculo:} se \texttt{passoOr == 1} avalia nas duas pontas; sen\~ao, no in\'icio de cada bloco, avalia \emph{uma vez} no ponto m\'edio do bloco e segura (ver abaixo).
+\item \textbf{T\'ermico:} um passo de Euler expl\'icito de tamanho $\Ta$, \texttt{Tb = T + Ta*termico\_dTdt(...)}. A pot\^encia el\'etrica sai do m\'odulo e n\~ao vira calor.
+\item \textbf{Ponta final:} resolve o painel em \texttt{Vref} com $G$ e $T$ do fim.
+\item \textbf{Energia:} $E\mathrel{+}=(P_a+P_b)/2\cdot\Ta$ (trap\'ezio, igual \`a din\^amica) e $E_g\mathrel{+}=P_g\Ta$.
+\item \textbf{Bateria:} \texttt{potencia\_saida} usa \arq{equilibrio_conversor} para obter $P_{out}$ com perdas e classifica o ponto: CCM, DCM, invi\'avel ou sem corrente.
+\item O MPPT recebe (\texttt{Vref}, \texttt{Ib}) e escolhe o pr\'oximo \texttt{Vref}.
+\end{enumerate}
+\end{logica}
+
+\textbf{Op\c{c}\~oes.} \texttt{op.termico} (obrigat\'oria: com ou sem aquecimento), \texttt{op.perdas} (conversor com ou sem perdas), \texttt{op.dt\_oraculo}, \texttt{op.t\_ini} e \texttt{op.n\_log} (guarda as s\'eries s\'o a cada
+$n$ per\'iodos, para economizar mem\'oria). As duas primeiras permitem a \textbf{abla\c{c}\~ao} do E7: ligar e desligar cada efeito e ver quanto ele pesa.
+
+\textbf{Or\'aculo em blocos (D16).} O or\'aculo \'e a parte cara. Com \texttt{dt\_oraculo}$=\Ta$ custa $\sim$2500\,s de CPU por hora simulada; com 1\,s custa $\sim$65\,s. Para isso os per\'iodos s\~ao
+agrupados em blocos de $\mathrm{round}(1\text{ s}/\Ta)$ per\'iodos e o or\'aculo \'e avaliado \textbf{uma vez por bloco, no ponto m\'edio}, e segurado. Numa rampa de $G$ o erro de primeira ordem se
+cancela (o que falta numa metade sobra na outra), restando $\sim h^3/24\,|P_g''|$ por bloco de dura\c{c}\~ao $h$; segurar o valor do in\'icio dar\'ia erro $\sim h^2/2\,|P_g'|$, isto \'e, um atraso.
+Com $dt=60$\,s o custo cai para $\sim$20\,s por hora, mas o or\'aculo atrasa nas rampas ($\eta\approx1{,}02$ numa rampa de $\sim0{,}5$\,W/m$^2$/s): por isso o valor de 1\,s.
+
+\subsection{Validade do quase-est\'atico contra a din\^amica (D16)}
+
+O que o quase-est\'atico ignora \'e a energia do transit\'orio depois de cada degrau de $\Vref$. O teste \texttt{test\_quase\_estatica} mede isso contra \texttt{sim\_dinamica}:
+
+\begin{resultado}
+\small\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+Algoritmo & Erro de energia do quase-est\'atico \\ \midrule
+P\&O e InC & $\le0{,}4$\,\% (cerca de $+0{,}1$\,\%) \\
+PSO buscando o tempo todo (janela de 4\,s com rein\'icio) & $-1{,}1$\,\% \\
+PSO numa janela t\'ipica de 20\,s (busca de 1 a 2\,s e depois segura o $g_{best}$) & cerca de $-0{,}3$\,\% \\
+\bottomrule
+\end{tabular}
+\end{resultado}
+
+O sinal negativo para o PSO tem causa f\'isica. Depois de um degrau grande de $\Vref$, o transit\'orio do PI passa por tens\~oes \emph{entre} as part\'iculas, perto do pico, com mais pot\^encia
+que nas pontas; o quase-est\'atico s\'o conta a pot\^encia em $\Vref$. Logo o erro \'e \textbf{conservador contra o PSO}: o resultado do PSO no E7 \'e, se algo, um pouco pior que o real.

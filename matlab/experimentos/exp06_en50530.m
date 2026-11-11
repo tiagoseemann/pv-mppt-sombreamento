@@ -17,7 +17,6 @@ clear; clc; close all;
 setup_path();
 
 pasta_res = fullfile(raiz_projeto(), 'resultados');
-if ~isfolder(pasta_res), mkdir(pasta_res); end
 arq_saida = fullfile(pasta_res, 'e6_en50530.csv');
 
 p = parametros_painel('ztp160m');  pc = parametros_conversor(p, 12);
